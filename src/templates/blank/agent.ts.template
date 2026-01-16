@@ -1,0 +1,52 @@
+import "dotenv/config";
+import { A2AServer, InMemoryTaskStore } from "@wardenprotocol/agent-kit";
+import type { TaskContext, TaskYieldUpdate } from "@wardenprotocol/agent-kit";
+
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "localhost";
+const BASE_URL = `http://${HOST}:${PORT}`;
+
+const server = new A2AServer({
+  agentCard: {
+    name: "{{name}}",
+    description: "{{description}}",
+    url: BASE_URL,
+    version: "0.1.0",
+    capabilities: {
+      streaming: {{streaming}},
+      multiTurn: {{multiTurn}},
+    },
+    skills: [{{skills}}],
+  },
+  taskStore: new InMemoryTaskStore(),
+  handler: async function* (context: TaskContext): AsyncGenerator<TaskYieldUpdate> {
+    const userMessage = context.message.parts
+      ?.filter((p) => p.type === "text")
+      .map((p) => p.text)
+      .join("\n");
+
+    if (!userMessage) {
+      yield {
+        state: "completed",
+        message: {
+          role: "agent",
+          parts: [{ type: "text", text: "No message provided." }],
+        },
+      };
+      return;
+    }
+
+    // TODO: Implement your agent logic here
+    yield {
+      state: "completed",
+      message: {
+        role: "agent",
+        parts: [{ type: "text", text: `Echo: ${userMessage}` }],
+      },
+    };
+  },
+});
+
+server.listen(Number(PORT)).then(() => {
+  console.log(`{{name}} running at ${BASE_URL}`);
+});

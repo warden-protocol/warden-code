@@ -1,0 +1,38 @@
+{
+  "name": "warden",
+  "version": "0.1.0",
+  "description": "Interactive CLI for bootstrapping Warden agents",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "warden": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc && cp -r src/templates dist/",
+    "dev": "tsc --watch",
+    "cli": "node dist/cli/index.js",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "warden",
+    "agent",
+    "cli",
+    "a2a",
+    "scaffolding"
+  ],
+  "author": "Warden Protocol",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "chalk": "^5.4.1",
+    "ora": "^8.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
