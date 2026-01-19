@@ -23,7 +23,9 @@ export class CommandRegistry {
   }
 
   all(): SlashCommand[] {
-    return Array.from(this.commands.values());
+    return Array.from(this.commands.values()).sort(
+      (a, b) => (a.order ?? 100) - (b.order ?? 100),
+    );
   }
 
   async execute(input: string, context: CliContext): Promise<boolean> {
@@ -45,7 +47,9 @@ export class CommandRegistry {
     return true;
   }
 
-  private parseInput(input: string): { commandName: string; args: string[] } | null {
+  private parseInput(
+    input: string,
+  ): { commandName: string; args: string[] } | null {
     const trimmed = input.trim();
     if (!trimmed.startsWith("/")) {
       return null;

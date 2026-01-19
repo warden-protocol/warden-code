@@ -26,6 +26,7 @@ export const newCommand: SlashCommand = {
   name: "new",
   description: "Create a new agent interactively",
   usage: "/new [path]",
+  order: 10,
   handler: async (args: string[], context: CliContext) => {
     try {
       // Determine target directory

@@ -7,7 +7,6 @@ import {
   createHelpCommand,
   clearCommand,
   exitCommand,
-  initCommand,
   newCommand,
 } from "./commands/index.js";
 import { banner, prompt } from "./ui/format.js";
@@ -20,7 +19,6 @@ async function main() {
   registry.register(createHelpCommand(registry));
   registry.register(clearCommand);
   registry.register(exitCommand);
-  registry.register(initCommand);
   registry.register(newCommand);
 
   // Display welcome banner and available commands

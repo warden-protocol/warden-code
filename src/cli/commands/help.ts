@@ -9,6 +9,7 @@ export function createHelpCommand(registry: CommandRegistry): SlashCommand {
     description: "Show available commands",
     aliases: ["h", "?"],
     usage: "/help [command]",
+    order: 20,
     handler: async (args: string[], context: CliContext) => {
       if (args.length > 0) {
         const commandName = args[0];
@@ -22,7 +23,10 @@ export function createHelpCommand(registry: CommandRegistry): SlashCommand {
             console.log(chalk.dim("Usage:"), command.usage);
           }
           if (command.aliases?.length) {
-            console.log(chalk.dim("Aliases:"), command.aliases.map((a) => `/${a}`).join(", "));
+            console.log(
+              chalk.dim("Aliases:"),
+              command.aliases.map((a) => `/${a}`).join(", "),
+            );
           }
           console.log();
         } else {
@@ -38,7 +42,9 @@ export function createHelpCommand(registry: CommandRegistry): SlashCommand {
         console.log(commandHelp(command.name, command.description));
       }
       console.log();
-      context.log.dim("Type /help <command> for more info on a specific command");
+      context.log.dim(
+        "Type /help <command> for more info on a specific command",
+      );
       console.log();
     },
   };

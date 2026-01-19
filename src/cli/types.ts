@@ -5,6 +5,7 @@ export interface SlashCommand {
   description: string;
   aliases?: string[];
   usage?: string;
+  order?: number;
   handler: (args: string[], context: CliContext) => Promise<void>;
 }
 

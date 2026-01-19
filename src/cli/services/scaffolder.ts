@@ -31,9 +31,15 @@ export function processTemplate(content: string, config: AgentConfig): string {
   return content
     .replace(/\{\{name\}\}/g, config.name)
     .replace(/\{\{description\}\}/g, config.description)
-    .replace(/\{\{streaming\}\}/g, String(config.capabilities.streaming))
-    .replace(/\{\{multiTurn\}\}/g, String(config.capabilities.multiTurn))
     .replace(/\{\{skills\}\}/g, skillsStr);
+}
+
+/**
+ * Get the template directory name based on base template and capability.
+ */
+function getTemplateDirName(config: AgentConfig): string {
+  const capability = config.capabilities.streaming ? "streaming" : "multiturn";
+  return `${config.template}-${capability}`;
 }
 
 function generatePackageJson(config: AgentConfig): string {
@@ -48,7 +54,7 @@ function generatePackageJson(config: AgentConfig): string {
       agent: "node dist/agent.js",
     },
     dependencies: {
-      "@wardenprotocol/agent-kit": "^0.1.0",
+      "@wardenprotocol/agent-kit": "^0.2.0",
       dotenv: "^16.4.0",
     } as Record<string, string>,
     devDependencies: {
@@ -90,6 +96,7 @@ function generateTsConfig(): string {
 
 const GITIGNORE = `node_modules/
 dist/
+coverage/
 *.log
 .DS_Store
 .env
@@ -110,9 +117,12 @@ export async function scaffoldAgent(
   targetDir: string,
   config: AgentConfig,
 ): Promise<void> {
+  // Get the appropriate template directory based on template + capability
+  const templateDirName = getTemplateDirName(config);
+
   // Read and process the agent template
   const templateContent = await readTemplate(
-    config.template,
+    templateDirName,
     "agent.ts.template",
   );
   const processedContent = processTemplate(templateContent, config);
@@ -136,4 +146,17 @@ export async function scaffoldAgent(
   const envExample =
     config.template === "openai" ? ENV_EXAMPLE_OPENAI : ENV_EXAMPLE_BLANK;
   await writeFile(path.join(targetDir, ".env.example"), envExample);
+}
+
+/**
+ * Check if a template exists.
+ */
+export async function templateExists(template: string): Promise<boolean> {
+  try {
+    const dir = await getTemplateDir(template);
+    await fs.access(dir);
+    return true;
+  } catch {
+    return false;
+  }
 }
