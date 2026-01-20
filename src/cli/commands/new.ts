@@ -15,11 +15,22 @@ import {
 import { scaffoldAgent } from "../services/scaffolder.js";
 
 function validateAgentName(value: string): string | boolean {
-  if (!value) return "Agent name is required";
-  if (!/^[a-z][a-z0-9-]*$/.test(value)) {
-    return "Name must be lowercase, start with a letter, and contain only letters, numbers, and hyphens";
-  }
+  if (!value.trim()) return "Agent name is required";
   return true;
+}
+
+/**
+ * Convert a display name to a valid npm package name.
+ * e.g., "My Cool Agent" -> "my-cool-agent"
+ */
+function toPackageName(displayName: string): string {
+  return displayName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-\s]/g, "") // remove invalid chars
+    .replace(/\s+/g, "-") // spaces to hyphens
+    .replace(/-+/g, "-") // collapse multiple hyphens
+    .replace(/^-|-$/g, ""); // trim leading/trailing hyphens
 }
 
 export const newCommand: SlashCommand = {
@@ -144,8 +155,10 @@ export const newCommand: SlashCommand = {
       }
 
       // Build config
+      const packageName = toPackageName(name);
       const config: AgentConfig = {
         name,
+        packageName,
         description,
         template,
         capabilities: {
@@ -160,6 +173,7 @@ export const newCommand: SlashCommand = {
       console.log(chalk.bold("Configuration Summary:"));
       console.log(chalk.dim("─".repeat(40)));
       console.log(`  Name:         ${chalk.cyan(config.name)}`);
+      console.log(`  Package:      ${chalk.dim(config.packageName)}`);
       console.log(`  Description:  ${chalk.dim(config.description)}`);
       console.log(`  Template:     ${chalk.cyan(config.template)}`);
       console.log(

@@ -24,7 +24,10 @@ export interface CliContext {
 }
 
 export interface AgentConfig {
+  /** Display name (e.g., "My Cool Agent") */
   name: string;
+  /** npm package name (e.g., "my-cool-agent") */
+  packageName: string;
   description: string;
   template: "blank" | "openai";
   capabilities: {

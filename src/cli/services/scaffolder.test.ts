@@ -4,7 +4,8 @@ import type { AgentConfig } from "../types.js";
 
 function createMockConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
   return {
-    name: "test-agent",
+    name: "Test Agent",
+    packageName: "test-agent",
     description: "A test agent",
     template: "blank",
     capabilities: {

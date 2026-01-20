@@ -24,7 +24,7 @@ This launches an interactive CLI where you can create new agents.
 
 | Command | Description |
 |---------|-------------|
-| `/new [path]` | Create a new agent interactively |
+| `/new [path]` | Create a new agent interactively [optionally provide a path] |
 | `/help` | Show available commands |
 | `/clear` | Clear the terminal |
 | `/exit` | Exit the CLI |
@@ -33,7 +33,7 @@ This launches an interactive CLI where you can create new agents.
 
 Run `/new` to start the agent creation wizard:
 
-1. **Agent name** - lowercase, letters/numbers/hyphens
+1. **Agent name** - a name for your agent
 2. **Description** - what your agent does
 3. **Template** - Blank (echo) or OpenAI (GPT-powered)
 4. **Capability** - Streaming or Multi-turn conversations

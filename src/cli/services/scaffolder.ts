@@ -44,7 +44,7 @@ function getTemplateDirName(config: AgentConfig): string {
 
 function generatePackageJson(config: AgentConfig): string {
   const pkg: Record<string, unknown> = {
-    name: config.name,
+    name: config.packageName,
     version: "0.1.0",
     type: "module",
     main: "dist/agent.js",
