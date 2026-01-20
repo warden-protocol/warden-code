@@ -1,5 +1,5 @@
 {
-  "name": "warden",
+  "name": "warden-code",
   "version": "0.1.0",
   "description": "Interactive CLI for bootstrapping Warden agents",
   "type": "module",
@@ -8,11 +8,18 @@
   "bin": {
     "warden": "./dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc && cp -r src/templates dist/",
     "dev": "tsc --watch",
     "cli": "node dist/cli/index.js",
     "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
@@ -22,10 +29,22 @@
     "agent",
     "cli",
     "a2a",
-    "scaffolding"
+    "langgraph",
+    "ai",
+    "scaffolding",
+    "generator"
   ],
   "author": "Warden Protocol",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/warden-protocol/agent-kit.git",
+    "directory": "warden"
+  },
+  "bugs": {
+    "url": "https://github.com/warden-protocol/agent-kit/issues"
+  },
+  "homepage": "https://github.com/warden-protocol/agent-kit/tree/main/warden#readme",
   "dependencies": {
     "@inquirer/prompts": "^7.0.0",
     "chalk": "^5.4.1",
