@@ -33,7 +33,7 @@ Run `/new` to start the agent creation wizard:
 
 1. **Agent name** - a name for your agent
 2. **Description** - what your agent does
-3. **Model** - Blank (echo) or OpenAI (GPT-powered)
+3. **Model** - Echo (echoes input) or OpenAI (GPT-powered)
 4. **Capability** - Streaming or Multi-turn conversations
 5. **Skills** - Define agent capabilities (optional)
 
@@ -43,8 +43,8 @@ After generation, your agent will be ready at `src/agent.ts`.
 
 | Model | Description |
 |----------|-------------|
-| **Blank + Streaming** | Minimal streaming agent that echoes input |
-| **Blank + Multi-turn** | Minimal multi-turn conversation agent |
+| **Echo + Streaming** | Minimal streaming agent that echoes input |
+| **Echo + Multi-turn** | Minimal multi-turn conversation agent |
 | **OpenAI + Streaming** | GPT-powered agent with streaming responses |
 | **OpenAI + Multi-turn** | GPT-powered agent with conversation history |
 
@@ -57,9 +57,11 @@ All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes bo
 ```
 my-agent/
 ├── src/
-│   └── agent.ts      # Your agent code
+│   ├── agent.ts      # Your agent logic (handler function)
+│   └── server.ts     # Server setup and configuration
 ├── package.json
 ├── tsconfig.json
+├── Dockerfile
 ├── .env.example
 └── .gitignore
 ```
@@ -68,7 +70,6 @@ my-agent/
 
 ```bash
 cd my-agent
-npm install
 npm run build
 npm run agent
 ```
