@@ -1,22 +1,45 @@
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 
-export function banner(): string {
-  return chalk.cyan(`
- __        __            _
- \\ \\      / /_ _ _ __ __| | ___ _ __
-  \\ \\ /\\ / / _\` | '__/ _\` |/ _ \\ '_ \\
-   \\ V  V / (_| | | | (_| |  __/ | | |
-    \\_/\\_/ \\__,_|_|  \\__,_|\\___|_| |_|
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(
+    path.resolve(__dirname, "..", "..", "..", "package.json"),
+    "utf-8",
+  ),
+);
 
-`) + chalk.dim("  Agent Development CLI\n");
+export function banner(): string {
+  return (
+    chalk.rgb(
+      199,
+      255,
+      142,
+    )(`
+░██       ░██    ░███    ░█████████  ░███████   ░██████████ ░███    ░██
+░██       ░██   ░██░██   ░██     ░██ ░██   ░██  ░██         ░████   ░██
+░██  ░██  ░██  ░██  ░██  ░██     ░██ ░██    ░██ ░██         ░██░██  ░██
+░██ ░████ ░██ ░█████████ ░█████████  ░██    ░██ ░█████████  ░██ ░██ ░██
+░██░██ ░██░██ ░██    ░██ ░██   ░██   ░██    ░██ ░██         ░██  ░██░██
+░████   ░████ ░██    ░██ ░██    ░██  ░██   ░██  ░██         ░██   ░████
+░███     ░███ ░██    ░██ ░██     ░██ ░███████   ░██████████ ░██    ░███
+
+`) + chalk.dim(`  Agent Development CLI v${pkg.version}\n`)
+  );
 }
 
 export function prompt(): string {
-  return chalk.green("warden") + chalk.dim("> ");
+  return chalk.rgb(199, 255, 142)("warden") + chalk.dim("> ");
 }
 
-export function commandHelp(name: string, description: string, usage?: string): string {
-  let output = `  ${chalk.cyan("/" + name)}`;
+export function commandHelp(
+  name: string,
+  description: string,
+  usage?: string,
+): string {
+  let output = `  ${chalk.rgb(199, 255, 142)("/" + name)}`;
   output += chalk.dim(` - ${description}`);
   if (usage) {
     output += `\n    ${chalk.dim("Usage:")} ${usage}`;

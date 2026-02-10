@@ -83,7 +83,7 @@ export const newCommand: SlashCommand = {
       });
 
       const template = await select({
-        message: "Select a template:",
+        message: "Select a model:",
         choices: [
           {
             value: "blank" as const,
@@ -173,10 +173,12 @@ export const newCommand: SlashCommand = {
       console.log();
       console.log(chalk.bold("Configuration Summary:"));
       console.log(chalk.dim("─".repeat(40)));
-      console.log(`  Name:         ${chalk.cyan(config.name)}`);
+      console.log(`  Name:         ${chalk.rgb(199, 255, 142)(config.name)}`);
       console.log(`  Package:      ${chalk.dim(config.packageName)}`);
       console.log(`  Description:  ${chalk.dim(config.description)}`);
-      console.log(`  Template:     ${chalk.cyan(config.template)}`);
+      console.log(
+        `  Model:        ${chalk.rgb(199, 255, 142)(config.template)}`,
+      );
       console.log(
         `  Streaming:    ${config.capabilities.streaming ? chalk.green("Yes") : chalk.dim("No")}`,
       );
