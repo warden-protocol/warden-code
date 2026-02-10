@@ -54,7 +54,7 @@ function generatePackageJson(config: AgentConfig): string {
       agent: "node dist/agent.js",
     },
     dependencies: {
-      "@wardenprotocol/agent-kit": "^0.2.0",
+      "@wardenprotocol/agent-kit": "^0.3.1",
       dotenv: "^16.4.0",
     } as Record<string, string>,
     devDependencies: {
