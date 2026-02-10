@@ -1,0 +1,28 @@
+import type { TaskContext, TaskYieldUpdate } from "@wardenprotocol/agent-kit";
+
+export async function* handler(context: TaskContext): AsyncGenerator<TaskYieldUpdate> {
+  const userMessage = context.message.parts
+    ?.filter((p) => p.type === "text")
+    .map((p) => p.text)
+    .join("\n");
+
+  if (!userMessage) {
+    yield {
+      state: "completed",
+      message: {
+        role: "agent",
+        parts: [{ type: "text", text: "No message provided." }],
+      },
+    };
+    return;
+  }
+
+  // TODO: Implement your agent logic here
+  yield {
+    state: "completed",
+    message: {
+      role: "agent",
+      parts: [{ type: "text", text: `Echo: ${userMessage}` }],
+    },
+  };
+}

@@ -1,103 +1,59 @@
-import "dotenv/config";
 import OpenAI from "openai";
-import { AgentServer } from "@wardenprotocol/agent-kit";
 import type { TaskContext, TaskYieldUpdate, MessagePart } from "@wardenprotocol/agent-kit";
-
-const PORT = Number(process.env.PORT) || 3000;
-const HOST = process.env.HOST || "localhost";
-const BASE_URL = `http://${HOST}:${PORT}`;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const server = new AgentServer({
-  agentCard: {
-    name: "{{name}}",
-    description: "{{description}}",
-    url: BASE_URL,
-    version: "0.1.0",
-    capabilities: {
-      streaming: true,
-      multiTurn: false,
-    },
-    skills: [{{skills}}],
-  },
-  handler: async function* (context: TaskContext): AsyncGenerator<TaskYieldUpdate> {
-    const userMessage = context.message.parts
-      ?.filter((p): p is MessagePart & { type: "text" } => p.type === "text")
-      .map((p) => p.text)
-      .join("\n");
+export async function* handler(context: TaskContext): AsyncGenerator<TaskYieldUpdate> {
+  const userMessage = context.message.parts
+    ?.filter((p): p is MessagePart & { type: "text" } => p.type === "text")
+    .map((p) => p.text)
+    .join("\n");
 
-    if (!userMessage) {
-      yield {
-        state: "completed",
-        message: {
-          role: "agent",
-          parts: [{ type: "text", text: "No message provided." }],
-        },
-      };
-      return;
-    }
-
-    try {
-      yield { state: "working" };
-
-      const stream = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "{{description}}" },
-          { role: "user", content: userMessage },
-        ],
-        stream: true,
-      });
-
-      let fullResponse = "";
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        fullResponse += content;
-      }
-
-      yield {
-        state: "completed",
-        message: {
-          role: "agent",
-          parts: [{ type: "text", text: fullResponse }],
-        },
-      };
-    } catch (error) {
-      yield {
-        state: "failed",
-        message: {
-          role: "agent",
-          parts: [{ type: "text", text: `Error: ${String(error)}` }],
-        },
-      };
-    }
-  },
-});
-
-server.listen(PORT).then(() => {
-  const hasApiKey = !!process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-
-  console.log(`{{name}} (Dual Protocol)`);
-  console.log(`Server: ${BASE_URL}`);
-  console.log(`Model: ${model}`);
-  console.log(`API Key: ${hasApiKey ? "configured" : "NOT SET"}`);
-  console.log();
-  console.log("A2A Protocol:");
-  console.log(`  Agent Card: ${BASE_URL}/.well-known/agent-card.json`);
-  console.log(`  JSON-RPC:   POST ${BASE_URL}/`);
-  console.log();
-  console.log("LangGraph Protocol:");
-  console.log(`  Info:       ${BASE_URL}/info`);
-  console.log(`  Assistants: ${BASE_URL}/assistants`);
-  console.log(`  Threads:    ${BASE_URL}/threads`);
-  console.log(`  Runs:       ${BASE_URL}/runs`);
-
-  if (!hasApiKey) {
-    console.log();
-    console.log("Warning: OPENAI_API_KEY not set. Set it in your .env file.");
+  if (!userMessage) {
+    yield {
+      state: "completed",
+      message: {
+        role: "agent",
+        parts: [{ type: "text", text: "No message provided." }],
+      },
+    };
+    return;
   }
-});
+
+  try {
+    yield { state: "working" };
+
+    const stream = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "{{description}}" },
+        { role: "user", content: userMessage },
+      ],
+      stream: true,
+    });
+
+    let fullResponse = "";
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      fullResponse += content;
+    }
+
+    yield {
+      state: "completed",
+      message: {
+        role: "agent",
+        parts: [{ type: "text", text: fullResponse }],
+      },
+    };
+  } catch (error) {
+    yield {
+      state: "failed",
+      message: {
+        role: "agent",
+        parts: [{ type: "text", text: `Error: ${String(error)}` }],
+      },
+    };
+  }
+}
