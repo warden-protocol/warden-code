@@ -55,8 +55,8 @@ After generation, your agent will be ready at `src/agent.ts`.
 | **OpenAI + Multi-turn** | GPT-powered agent with conversation history |
 
 All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes both:
-- **A2A Protocol** - JSON-RPC at `POST /`, discovery at `GET /.well-known/agent-card.json`
-- **LangGraph Protocol** - REST API at `/assistants`, `/threads`, `/runs`
+- **A2A Protocol**
+- **LangGraph Protocol**
 
 ## Generated Project Structure
 
