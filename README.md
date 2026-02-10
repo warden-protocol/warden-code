@@ -33,22 +33,22 @@ Run `/new` to start the agent creation wizard:
 
 1. **Agent name** - a name for your agent
 2. **Description** - what your agent does
-3. **Template** - Blank (echo) or OpenAI (GPT-powered)
+3. **Model** - Blank (echo) or OpenAI (GPT-powered)
 4. **Capability** - Streaming or Multi-turn conversations
 5. **Skills** - Define agent capabilities (optional)
 
 After generation, your agent will be ready at `src/agent.ts`.
 
-## Templates
+## Models
 
-| Template | Description |
+| Model | Description |
 |----------|-------------|
 | **Blank + Streaming** | Minimal streaming agent that echoes input |
 | **Blank + Multi-turn** | Minimal multi-turn conversation agent |
 | **OpenAI + Streaming** | GPT-powered agent with streaming responses |
 | **OpenAI + Multi-turn** | GPT-powered agent with conversation history |
 
-All templates use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes both:
+All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes both:
 - **A2A Protocol** - JSON-RPC at `POST /`, discovery at `GET /.well-known/agent-card.json`
 - **LangGraph Protocol** - REST API at `/assistants`, `/threads`, `/runs`
 
