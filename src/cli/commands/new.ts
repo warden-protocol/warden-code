@@ -15,6 +15,14 @@ import {
 } from "../services/project.js";
 import { scaffoldAgent } from "../services/scaffolder.js";
 
+const promptTheme = {
+  style: {
+    answer: (text: string) => chalk.rgb(199, 255, 142)(text),
+    highlight: (text: string) => chalk.rgb(199, 255, 142)(text),
+    description: (text: string) => chalk.rgb(199, 255, 142)(text),
+  },
+};
+
 function validateAgentName(value: string): string | boolean {
   if (!value.trim()) return "Agent name is required";
   return true;
@@ -65,6 +73,7 @@ export const newCommand: SlashCommand = {
         const proceed = await confirm({
           message: "Continue anyway?",
           default: false,
+          theme: promptTheme,
         });
         if (!proceed) {
           return;
@@ -75,18 +84,20 @@ export const newCommand: SlashCommand = {
       const name = await input({
         message: "Agent name:",
         validate: validateAgentName,
+        theme: promptTheme,
       });
 
       const description = await input({
         message: "Agent description:",
         default: `A helpful AI agent named ${name}`,
+        theme: promptTheme,
       });
 
       const template = await select({
         message: "Select a model:",
         choices: [
           {
-            value: "blank" as const,
+            value: "echo" as const,
             name: "Blank",
             description: "Minimal A2A server that echoes input",
           },
@@ -96,6 +107,7 @@ export const newCommand: SlashCommand = {
             description: "Full-featured agent with OpenAI/GPT integration",
           },
         ],
+        theme: promptTheme,
       });
 
       const capability = await select({
@@ -112,6 +124,7 @@ export const newCommand: SlashCommand = {
             description: "Support back-and-forth conversations",
           },
         ],
+        theme: promptTheme,
       });
 
       // Skills configuration
@@ -119,6 +132,7 @@ export const newCommand: SlashCommand = {
       const addSkills = await confirm({
         message: "Would you like to define skills?",
         default: true,
+        theme: promptTheme,
       });
 
       if (addSkills) {
@@ -127,6 +141,7 @@ export const newCommand: SlashCommand = {
           const skillId = await input({
             message: "Skill ID (e.g., general-assistant):",
             validate: (v) => !!v || "Skill ID is required",
+            theme: promptTheme,
           });
 
           const skillName = await input({
@@ -135,11 +150,13 @@ export const newCommand: SlashCommand = {
               .split("-")
               .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
               .join(" "),
+            theme: promptTheme,
           });
 
           const skillDescription = await input({
             message: "Skill description:",
             default: `${skillName} capability`,
+            theme: promptTheme,
           });
 
           skills.push({
@@ -151,6 +168,7 @@ export const newCommand: SlashCommand = {
           addingSkills = await confirm({
             message: "Add another skill?",
             default: false,
+            theme: promptTheme,
           });
         }
       }
@@ -174,19 +192,23 @@ export const newCommand: SlashCommand = {
       console.log(chalk.bold("Configuration Summary:"));
       console.log(chalk.dim("─".repeat(40)));
       console.log(`  Name:         ${chalk.rgb(199, 255, 142)(config.name)}`);
-      console.log(`  Package:      ${chalk.dim(config.packageName)}`);
-      console.log(`  Description:  ${chalk.dim(config.description)}`);
+      console.log(
+        `  Package:      ${chalk.rgb(199, 255, 142)(config.packageName)}`,
+      );
+      console.log(
+        `  Description:  ${chalk.rgb(199, 255, 142)(config.description)}`,
+      );
       console.log(
         `  Model:        ${chalk.rgb(199, 255, 142)(config.template)}`,
       );
       console.log(
-        `  Streaming:    ${config.capabilities.streaming ? chalk.green("Yes") : chalk.dim("No")}`,
+        `  Streaming:    ${config.capabilities.streaming ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
       );
       console.log(
-        `  Multi-turn:   ${config.capabilities.multiTurn ? chalk.green("Yes") : chalk.dim("No")}`,
+        `  Multi-turn:   ${config.capabilities.multiTurn ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
       );
       console.log(
-        `  Skills:       ${config.skills.length > 0 ? config.skills.map((s) => s.name).join(", ") : chalk.dim("None")}`,
+        `  Skills:       ${config.skills.length > 0 ? chalk.rgb(199, 255, 142)(config.skills.map((s) => s.name).join(", ")) : chalk.dim("None")}`,
       );
       console.log(chalk.dim("─".repeat(40)));
       console.log();
@@ -194,6 +216,7 @@ export const newCommand: SlashCommand = {
       const confirmed = await confirm({
         message: "Generate agent with this configuration?",
         default: true,
+        theme: promptTheme,
       });
 
       if (!confirmed) {

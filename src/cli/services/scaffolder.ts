@@ -20,6 +20,11 @@ export async function readTemplate(
   return fs.readFile(filePath, "utf-8");
 }
 
+async function readSharedTemplate(filename: string): Promise<string> {
+  const filePath = path.resolve(__dirname, "../../templates", filename);
+  return fs.readFile(filePath, "utf-8");
+}
+
 export function processTemplate(content: string, config: AgentConfig): string {
   const skillsStr = config.skills
     .map(
@@ -28,10 +33,27 @@ export function processTemplate(content: string, config: AgentConfig): string {
     )
     .join(",\n      ");
 
+  const modelStartupLog =
+    config.template === "openai"
+      ? `const hasApiKey = !!process.env.OPENAI_API_KEY;
+  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  console.log(\`Model: \${model}\`);
+  console.log(\`API Key: \${hasApiKey ? "configured" : "NOT SET"}\`);`
+      : "";
+
   return content
     .replace(/\{\{name\}\}/g, config.name)
     .replace(/\{\{description\}\}/g, config.description)
-    .replace(/\{\{skills\}\}/g, skillsStr);
+    .replace(/\{\{skills\}\}/g, skillsStr)
+    .replace(
+      /\{\{capabilities_streaming\}\}/g,
+      String(config.capabilities.streaming),
+    )
+    .replace(
+      /\{\{capabilities_multiturn\}\}/g,
+      String(config.capabilities.multiTurn),
+    )
+    .replace(/\{\{model_startup_log\}\}/g, modelStartupLog);
 }
 
 /**
@@ -47,11 +69,11 @@ function generatePackageJson(config: AgentConfig): string {
     name: config.packageName,
     version: "0.1.0",
     type: "module",
-    main: "dist/agent.js",
+    main: "dist/server.js",
     scripts: {
       build: "tsc",
       dev: "tsc --watch",
-      agent: "node dist/agent.js",
+      agent: "node dist/server.js",
     },
     dependencies: {
       "@wardenprotocol/agent-kit": "^0.3.1",
@@ -103,7 +125,7 @@ coverage/
 .env.local
 `;
 
-const ENV_EXAMPLE_BLANK = `HOST=localhost
+const ENV_EXAMPLE_ECHO = `HOST=localhost
 PORT=3000
 `;
 
@@ -113,6 +135,24 @@ OPENAI_API_KEY=your-api-key-here
 OPENAI_MODEL=gpt-4o-mini
 `;
 
+const DOCKERFILE = `FROM node:22-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+ENV HOST=0.0.0.0
+ENV PORT=3000
+EXPOSE 3000
+CMD ["node", "dist/server.js"]
+`;
+
 export async function scaffoldAgent(
   targetDir: string,
   config: AgentConfig,
@@ -120,15 +160,20 @@ export async function scaffoldAgent(
   // Get the appropriate template directory based on template + capability
   const templateDirName = getTemplateDirName(config);
 
-  // Read and process the agent template
-  const templateContent = await readTemplate(
+  // Read and process the agent handler template
+  const agentTemplate = await readTemplate(
     templateDirName,
     "agent.ts.template",
   );
-  const processedContent = processTemplate(templateContent, config);
+  const agentContent = processTemplate(agentTemplate, config);
 
-  // Write the agent file
-  await writeFile(path.join(targetDir, "src", "agent.ts"), processedContent);
+  // Read and process the shared server template
+  const serverTemplate = await readSharedTemplate("server.ts.template");
+  const serverContent = processTemplate(serverTemplate, config);
+
+  // Write the agent and server files
+  await writeFile(path.join(targetDir, "src", "agent.ts"), agentContent);
+  await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
 
   // Write package.json
   await writeFile(
@@ -144,8 +189,11 @@ export async function scaffoldAgent(
 
   // Write .env.example
   const envExample =
-    config.template === "openai" ? ENV_EXAMPLE_OPENAI : ENV_EXAMPLE_BLANK;
+    config.template === "openai" ? ENV_EXAMPLE_OPENAI : ENV_EXAMPLE_ECHO;
   await writeFile(path.join(targetDir, ".env.example"), envExample);
+
+  // Write Dockerfile
+  await writeFile(path.join(targetDir, "Dockerfile"), DOCKERFILE);
 }
 
 /**

@@ -26,7 +26,7 @@ export function banner(): string {
 ░████   ░████ ░██    ░██ ░██    ░██  ░██   ░██  ░██         ░██   ░████
 ░███     ░███ ░██    ░██ ░██     ░██ ░███████   ░██████████ ░██    ░███
 
-`) + chalk.dim(`  Agent Development CLI v${pkg.version}\n`)
+`) + chalk.dim(`Agent Development CLI v${pkg.version}\n`)
   );
 }
 

@@ -7,7 +7,7 @@ function createMockConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     name: "Test Agent",
     packageName: "test-agent",
     description: "A test agent",
-    template: "blank",
+    template: "echo",
     capabilities: {
       streaming: false,
       multiTurn: true,
@@ -109,6 +109,74 @@ describe("processTemplate", () => {
       expect(result).toContain('id: "skill-2"');
       expect(result).toContain('name: "Skill One"');
       expect(result).toContain('name: "Skill Two"');
+    });
+  });
+
+  describe("capabilities replacement", () => {
+    it("should replace {{capabilities_streaming}} with true", () => {
+      const content = "streaming: {{capabilities_streaming}}";
+      const config = createMockConfig({
+        capabilities: { streaming: true, multiTurn: false },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("streaming: true");
+    });
+
+    it("should replace {{capabilities_streaming}} with false", () => {
+      const content = "streaming: {{capabilities_streaming}}";
+      const config = createMockConfig({
+        capabilities: { streaming: false, multiTurn: true },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("streaming: false");
+    });
+
+    it("should replace {{capabilities_multiturn}} with true", () => {
+      const content = "multiTurn: {{capabilities_multiturn}}";
+      const config = createMockConfig({
+        capabilities: { streaming: false, multiTurn: true },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("multiTurn: true");
+    });
+
+    it("should replace {{capabilities_multiturn}} with false", () => {
+      const content = "multiTurn: {{capabilities_multiturn}}";
+      const config = createMockConfig({
+        capabilities: { streaming: true, multiTurn: false },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("multiTurn: false");
+    });
+  });
+
+  describe("model startup log replacement", () => {
+    it("should replace {{model_startup_log}} with OpenAI log for openai template", () => {
+      const content = "{{model_startup_log}}";
+      const config = createMockConfig({ template: "openai" });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("OPENAI_API_KEY");
+      expect(result).toContain("OPENAI_MODEL");
+      expect(result).toContain("gpt-4o-mini");
+    });
+
+    it("should replace {{model_startup_log}} with empty string for echo template", () => {
+      const content = "before\n{{model_startup_log}}\nafter";
+      const config = createMockConfig({ template: "echo" });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("before\n\nafter");
     });
   });
 
