@@ -2,18 +2,24 @@
 
 Interactive CLI for bootstrapping Warden agents with support for both A2A and LangGraph protocols.
 
-## Installation
+## Getting Started
+
+Install the CLI globally:
 
 ```bash
 npm install -g warden-code
-# or
-npx warden-code
 ```
 
-## Usage
+Then run it with:
 
 ```bash
 warden
+```
+
+Or just run it directly:
+
+```bash
+npx warden-code
 ```
 
 This launches an interactive CLI where you can create new agents.
@@ -33,7 +39,7 @@ Run `/new` to start the agent creation wizard:
 
 1. **Agent name** - a name for your agent
 2. **Description** - what your agent does
-3. **Model** - Echo (echoes input) or OpenAI (GPT-powered)
+3. **Model** - Echo (just a demo that echoes input) or OpenAI (GPT-powered)
 4. **Capability** - Streaming or Multi-turn conversations
 5. **Skills** - Define agent capabilities (optional)
 
