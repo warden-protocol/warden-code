@@ -53,7 +53,32 @@ export function processTemplate(content: string, config: AgentConfig): string {
       /\{\{capabilities_multiturn\}\}/g,
       String(config.capabilities.multiTurn),
     )
-    .replace(/\{\{model_startup_log\}\}/g, modelStartupLog);
+    .replace(/\{\{model_startup_log\}\}/g, modelStartupLog)
+    .replace(/\{\{packageName\}\}/g, config.packageName)
+    .replace(
+      /\{\{model_dependencies\}\}/g,
+      config.template === "openai" ? `,\n    "openai": "^4.69.0"` : "",
+    )
+    .replace(
+      /\{\{env_setup\}\}/g,
+      config.template === "openai"
+        ? `Copy the example environment file and configure your API key:
+
+\`\`\`bash
+cp .env.example .env
+\`\`\`
+
+Edit \`.env\` and set your \`OPENAI_API_KEY\`.
+
+`
+        : "",
+    )
+    .replace(
+      /\{\{env_model_config\}\}/g,
+      config.template === "openai"
+        ? `OPENAI_API_KEY=your-api-key-here\nOPENAI_MODEL=gpt-4o-mini\n`
+        : "",
+    );
 }
 
 /**
@@ -63,95 +88,6 @@ function getTemplateDirName(config: AgentConfig): string {
   const capability = config.capabilities.streaming ? "streaming" : "multiturn";
   return `${config.template}-${capability}`;
 }
-
-function generatePackageJson(config: AgentConfig): string {
-  const pkg: Record<string, unknown> = {
-    name: config.packageName,
-    version: "0.1.0",
-    type: "module",
-    main: "dist/server.js",
-    scripts: {
-      build: "tsc",
-      dev: "tsc --watch",
-      agent: "node dist/server.js",
-    },
-    dependencies: {
-      "@wardenprotocol/agent-kit": "^0.3.1",
-      dotenv: "^16.4.0",
-    } as Record<string, string>,
-    devDependencies: {
-      "@types/node": "^22.8.1",
-      typescript: "^5.6.3",
-    },
-  };
-
-  // Add OpenAI dependency if using OpenAI template
-  if (config.template === "openai") {
-    (pkg.dependencies as Record<string, string>)["openai"] = "^4.69.0";
-  }
-
-  return JSON.stringify(pkg, null, 2);
-}
-
-function generateTsConfig(): string {
-  const tsconfig = {
-    compilerOptions: {
-      target: "ES2022",
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      lib: ["ES2022"],
-      outDir: "./dist",
-      rootDir: "./src",
-      strict: true,
-      esModuleInterop: true,
-      skipLibCheck: true,
-      forceConsistentCasingInFileNames: true,
-      declaration: true,
-      sourceMap: true,
-    },
-    include: ["src/**/*"],
-    exclude: ["node_modules", "dist"],
-  };
-
-  return JSON.stringify(tsconfig, null, 2);
-}
-
-const GITIGNORE = `node_modules/
-dist/
-coverage/
-*.log
-.DS_Store
-.env
-.env.local
-`;
-
-const ENV_EXAMPLE_ECHO = `HOST=localhost
-PORT=3000
-`;
-
-const ENV_EXAMPLE_OPENAI = `HOST=localhost
-PORT=3000
-OPENAI_API_KEY=your-api-key-here
-OPENAI_MODEL=gpt-4o-mini
-`;
-
-const DOCKERFILE = `FROM node:22-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-
-FROM node:22-alpine
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-ENV HOST=0.0.0.0
-ENV PORT=3000
-EXPOSE 3000
-CMD ["node", "dist/server.js"]
-`;
 
 export async function scaffoldAgent(
   targetDir: string,
@@ -176,24 +112,31 @@ export async function scaffoldAgent(
   await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
 
   // Write package.json
-  await writeFile(
-    path.join(targetDir, "package.json"),
-    generatePackageJson(config),
-  );
+  const pkgTemplate = await readSharedTemplate("package.json.template");
+  const pkgContent = processTemplate(pkgTemplate, config);
+  await writeFile(path.join(targetDir, "package.json"), pkgContent);
 
   // Write tsconfig.json
-  await writeFile(path.join(targetDir, "tsconfig.json"), generateTsConfig());
+  const tsconfig = await readSharedTemplate("tsconfig.json.template");
+  await writeFile(path.join(targetDir, "tsconfig.json"), tsconfig);
 
   // Write .gitignore
-  await writeFile(path.join(targetDir, ".gitignore"), GITIGNORE);
+  const gitignore = await readSharedTemplate("gitignore.template");
+  await writeFile(path.join(targetDir, ".gitignore"), gitignore);
 
   // Write .env.example
-  const envExample =
-    config.template === "openai" ? ENV_EXAMPLE_OPENAI : ENV_EXAMPLE_ECHO;
-  await writeFile(path.join(targetDir, ".env.example"), envExample);
+  const envTemplate = await readSharedTemplate("env.example.template");
+  const envContent = processTemplate(envTemplate, config);
+  await writeFile(path.join(targetDir, ".env.example"), envContent);
 
   // Write Dockerfile
-  await writeFile(path.join(targetDir, "Dockerfile"), DOCKERFILE);
+  const dockerfile = await readSharedTemplate("Dockerfile.template");
+  await writeFile(path.join(targetDir, "Dockerfile"), dockerfile);
+
+  // Write README.md
+  const readmeTemplate = await readSharedTemplate("README.md.template");
+  const readme = processTemplate(readmeTemplate, config);
+  await writeFile(path.join(targetDir, "README.md"), readme);
 }
 
 /**

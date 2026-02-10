@@ -230,9 +230,7 @@ export const newCommand: SlashCommand = {
         await scaffoldAgent(targetDir, config);
         spinner.succeed("Agent generated!");
         console.log();
-        context.log.success(
-          `Created ${targetPath ? targetPath + "/" : ""}src/agent.ts`,
-        );
+        context.log.success(`Agent files created successfully.`);
 
         const installSpinner = context
           .spinner("Installing dependencies...")
