@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import * as path from "node:path";
 import { input, select, confirm, checkbox } from "@inquirer/prompts";
 import chalk from "chalk";
@@ -207,14 +208,25 @@ export const newCommand: SlashCommand = {
         context.log.success(
           `Created ${targetPath ? targetPath + "/" : ""}src/agent.ts`,
         );
+
+        const installSpinner = context
+          .spinner("Installing dependencies...")
+          .start();
+        try {
+          execSync("npm install", { cwd: targetDir, stdio: "ignore" });
+          installSpinner.succeed("Dependencies installed!");
+        } catch {
+          installSpinner.fail("Failed to install dependencies");
+          context.log.dim("  Run npm install manually to install dependencies");
+        }
+
         console.log();
         context.log.dim("Next steps (in a new terminal):");
         if (targetPath) {
           context.log.dim(`  cd ${targetPath}`);
         }
-        context.log.dim("  pnpm install");
-        context.log.dim("  pnpm build");
-        context.log.dim("  pnpm agent");
+        context.log.dim("  npm run build");
+        context.log.dim("  npm run agent");
         console.log();
       } catch (error) {
         spinner.fail("Failed to generate agent");

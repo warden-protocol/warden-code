@@ -7,8 +7,6 @@ Interactive CLI for bootstrapping Warden agents with support for both A2A and La
 ```bash
 npm install -g warden-code
 # or
-pnpm add -g warden-code
-# or
 npx warden-code
 ```
 
