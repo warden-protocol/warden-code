@@ -9,6 +9,7 @@ import {
   exitCommand,
   newCommand,
   buildCommand,
+  chatCommand,
 } from "./commands/index.js";
 import { banner, prompt } from "./ui/format.js";
 
@@ -22,15 +23,19 @@ async function main() {
   registry.register(exitCommand);
   registry.register(newCommand);
   registry.register(buildCommand);
+  registry.register(chatCommand);
 
   // Display welcome banner and available commands
   console.log(banner());
   await registry.execute("/help", context);
 
+  const history: string[] = [];
+
   const createRl = () =>
     readline.createInterface({
       input: process.stdin,
       output: process.stdout,
+      history,
     });
 
   let rl = createRl();
