@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { input, select, confirm, checkbox } from "@inquirer/prompts";
+import { input, select, confirm, checkbox, password } from "@inquirer/prompts";
 import chalk from "chalk";
 import type {
   SlashCommand,
@@ -12,6 +12,7 @@ import {
   isDirectoryEmpty,
   createDirectory,
   directoryExists,
+  writeFile,
 } from "../services/project.js";
 import { scaffoldAgent } from "../services/scaffolder.js";
 
@@ -109,6 +110,14 @@ export const newCommand: SlashCommand = {
         ],
         theme: promptTheme,
       });
+
+      let openaiApiKey: string | undefined;
+      if (template === "openai") {
+        openaiApiKey = await password({
+          message: "Enter your OpenAI API key:",
+          theme: promptTheme,
+        });
+      }
 
       const capability = await select({
         message: "Select capability:",
@@ -228,6 +237,19 @@ export const newCommand: SlashCommand = {
 
       try {
         await scaffoldAgent(targetDir, config);
+
+        if (openaiApiKey) {
+          const envContent = [
+            "HOST=localhost",
+            "PORT=3000",
+            "AGENT_URL=http://localhost:3000",
+            `OPENAI_API_KEY=${openaiApiKey}`,
+            "OPENAI_MODEL=gpt-4o-mini",
+            "",
+          ].join("\n");
+          await writeFile(path.join(targetDir, ".env"), envContent);
+        }
+
         spinner.succeed("Agent generated!");
         console.log();
         context.log.success(`Agent files created successfully.`);
