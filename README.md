@@ -82,6 +82,10 @@ npm run agent
 
 Your agent will be available at `http://localhost:3000`.
 
+## Hosting Your Agent
+
+To host your agent on a server, you can use a cloud provider like AWS, Google Cloud, or Azure. You can also use a containerization platform like [Render.com](https://render.com/) to deploy your agent as a Docker container.
+
 ## License
 
 Apache-2.0
