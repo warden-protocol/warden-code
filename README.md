@@ -29,6 +29,8 @@ This launches an interactive CLI where you can create new agents.
 | Command | Description |
 |---------|-------------|
 | `/new [path]` | Create a new agent interactively [optionally provide a path] |
+| `/build [path]` | Enter AI-powered build mode to modify your agent via chat |
+| `/chat <url>` | Chat with a running agent via A2A or LangGraph |
 | `/help` | Show available commands |
 | `/clear` | Clear the terminal |
 | `/exit` | Exit the CLI |
@@ -81,6 +83,14 @@ npm run agent
 ```
 
 Your agent will be available at `http://localhost:3000`.
+
+## Build Mode
+
+Run `/build` inside a scaffolded project to enter an AI-powered chat session. Describe the changes you want and the LLM will modify your agent code directly. Requires an OpenAI or Anthropic API key (configured on first run).
+
+## Chatting with an Agent
+
+Run `/chat http://localhost:3000` to interact with a running agent. The CLI auto-detects whether the agent supports A2A, LangGraph, or both, and prompts you to choose when multiple protocols are available.
 
 ## Hosting Your Agent
 
