@@ -244,7 +244,12 @@ export const newCommand: SlashCommand = {
         }
 
         console.log();
-        context.log.dim("Next steps (in a new terminal):");
+        context.log.dim("Next steps:");
+        context.log.dim(
+          `  /build${targetPath ? ` ${targetPath}` : ""}  — enter AI chat mode to build your agent`,
+        );
+        console.log();
+        context.log.dim("Or build and run manually (in a new terminal):");
         if (targetPath) {
           context.log.dim(`  cd ${targetPath}`);
         }
