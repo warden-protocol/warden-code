@@ -187,15 +187,23 @@ export const buildCommand: SlashCommand = {
     });
 
     const question = (prompt: string): Promise<string> =>
-      new Promise((resolve) => {
-        rl.question(prompt, resolve);
+      new Promise((resolve, reject) => {
+        const onClose = () => reject(new Error("closed"));
+        rl.once("close", onClose);
+        rl.question(prompt, (answer) => {
+          rl.removeListener("close", onClose);
+          resolve(answer);
+        });
       });
 
     let running = true;
 
-    // Handle Ctrl+C
-    rl.on("close", () => {
+    // Handle Ctrl+C — exit build mode gracefully
+    rl.on("SIGINT", () => {
       running = false;
+      rl.close();
+      console.log();
+      context.log.dim("Exited build mode.");
     });
 
     while (running) {
