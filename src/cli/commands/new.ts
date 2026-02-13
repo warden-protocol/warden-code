@@ -128,13 +128,13 @@ export const newCommand: SlashCommand = {
             value: "streaming" as const,
             name: "Streaming",
             description:
-              "Sends tokens as they are generated — fast first-byte, ideal for chat UIs",
+              "Tokens stream in real-time as the model generates — faster perceived response",
           },
           {
             value: "multiTurn" as const,
             name: "Multi-turn conversations",
             description:
-              "Remembers context across messages — ideal for back-and-forth dialogue",
+              "Response arrives all at once after completion — simpler to work with",
           },
         ],
         theme: promptTheme,
@@ -297,7 +297,7 @@ export const newCommand: SlashCommand = {
           `  1. /build${targetPath ? ` ${targetPath}` : ""}  — enter AI chat mode to build your agent`,
         );
         context.log.dim(
-          "  2. /build /chat — talk to your running agent from inside build mode",
+          "     Then use /chat inside build mode to talk to your running agent",
         );
         console.log();
         context.log.dim("Or build and run manually (in a new terminal):");
