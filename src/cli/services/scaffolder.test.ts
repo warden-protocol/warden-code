@@ -112,6 +112,58 @@ describe("processTemplate", () => {
     });
   });
 
+  describe("skills_json replacement", () => {
+    it("should replace {{skills_json}} with empty string for no skills", () => {
+      const content = '"skills": [{{skills_json}}]';
+      const config = createMockConfig({ skills: [] });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe('"skills": []');
+    });
+
+    it("should replace {{skills_json}} with valid JSON for a skill", () => {
+      const content = "[{{skills_json}}]";
+      const config = createMockConfig({
+        skills: [
+          {
+            id: "calc",
+            name: "Calculator",
+            description: "Does math",
+          },
+        ],
+      });
+
+      const result = processTemplate(content, config);
+      const parsed = JSON.parse(result);
+
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]).toEqual({
+        id: "calc",
+        name: "Calculator",
+        description: "Does math",
+        tags: [],
+      });
+    });
+
+    it("should produce valid JSON for multiple skills", () => {
+      const content = "[{{skills_json}}]";
+      const config = createMockConfig({
+        skills: [
+          { id: "a", name: "A", description: "First" },
+          { id: "b", name: "B", description: "Second" },
+        ],
+      });
+
+      const result = processTemplate(content, config);
+      const parsed = JSON.parse(result);
+
+      expect(parsed).toHaveLength(2);
+      expect(parsed[0].id).toBe("a");
+      expect(parsed[1].id).toBe("b");
+    });
+  });
+
   describe("capabilities replacement", () => {
     it("should replace {{capabilities_streaming}} with true", () => {
       const content = "streaming: {{capabilities_streaming}}";

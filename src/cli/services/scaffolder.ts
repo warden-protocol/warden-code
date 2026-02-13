@@ -33,6 +33,16 @@ export function processTemplate(content: string, config: AgentConfig): string {
     )
     .join(",\n      ");
 
+  const skillsJsonStr = config.skills
+    .map((s) =>
+      JSON.stringify(
+        { id: s.id, name: s.name, description: s.description, tags: [] },
+        null,
+        4,
+      ),
+    )
+    .join(",\n  ");
+
   const modelStartupLog =
     config.template === "openai"
       ? `const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -45,6 +55,7 @@ export function processTemplate(content: string, config: AgentConfig): string {
     .replace(/\{\{name\}\}/g, config.name)
     .replace(/\{\{description\}\}/g, config.description)
     .replace(/\{\{skills\}\}/g, skillsStr)
+    .replace(/\{\{skills_json\}\}/g, skillsJsonStr)
     .replace(
       /\{\{capabilities_streaming\}\}/g,
       String(config.capabilities.streaming),
@@ -107,7 +118,14 @@ export async function scaffoldAgent(
   const serverTemplate = await readSharedTemplate("server.ts.template");
   const serverContent = processTemplate(serverTemplate, config);
 
+  // Read and process the agent card template
+  const agentCardTemplate = await readSharedTemplate(
+    "agent-card.json.template",
+  );
+  const agentCardContent = processTemplate(agentCardTemplate, config);
+
   // Write the agent and server files
+  await writeFile(path.join(targetDir, "agent-card.json"), agentCardContent);
   await writeFile(path.join(targetDir, "src", "agent.ts"), agentContent);
   await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
 

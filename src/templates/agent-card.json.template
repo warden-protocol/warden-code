@@ -1,0 +1,10 @@
+{
+  "name": "{{name}}",
+  "description": "{{description}}",
+  "version": "0.1.0",
+  "capabilities": {
+    "streaming": {{capabilities_streaming}},
+    "multiTurn": {{capabilities_multiturn}}
+  },
+  "skills": [{{skills_json}}]
+}

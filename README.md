@@ -67,6 +67,7 @@ my-agent/
 ├── src/
 │   ├── agent.ts      # Your agent logic (handler function)
 │   └── server.ts     # Server setup and configuration
+├── agent-card.json   # Agent identity, capabilities, and skills (A2A protocol)
 ├── package.json
 ├── tsconfig.json
 ├── Dockerfile

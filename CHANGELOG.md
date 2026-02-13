@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.1.1 (2026-02-13)
+
+### Fixes
+
+- `/new` now always creates a `.env` file with default `HOST`, `PORT`, and `AGENT_URL` values, not just for OpenAI templates — fixes `/chat` in build mode not finding the agent URL
+- Fixed `RequestInfo` type errors in test files that broke `pnpm build`
+
+### Improvements
+
+- Extracted agent card from hardcoded `server.ts` into a separate `agent-card.json` file that is loaded at runtime
+- Added `agent-card.json` to build mode project context so the AI can see and modify it
+- Updated generated project structure in README
+
 ## 1.1.0 (2026-02-13)
 
 ### Features

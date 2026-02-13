@@ -238,17 +238,19 @@ export const newCommand: SlashCommand = {
       try {
         await scaffoldAgent(targetDir, config);
 
+        const envLines = [
+          "HOST=localhost",
+          "PORT=3000",
+          "AGENT_URL=http://localhost:3000",
+        ];
         if (openaiApiKey) {
-          const envContent = [
-            "HOST=localhost",
-            "PORT=3000",
-            "AGENT_URL=http://localhost:3000",
+          envLines.push(
             `OPENAI_API_KEY=${openaiApiKey}`,
             "OPENAI_MODEL=gpt-4o-mini",
-            "",
-          ].join("\n");
-          await writeFile(path.join(targetDir, ".env"), envContent);
+          );
         }
+        envLines.push("");
+        await writeFile(path.join(targetDir, ".env"), envLines.join("\n"));
 
         spinner.succeed("Agent generated!");
         console.log();

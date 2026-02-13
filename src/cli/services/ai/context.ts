@@ -3,23 +3,19 @@ import * as path from "node:path";
 import { writeFile } from "../project.js";
 
 const PROJECT_FILES = [
+  "agent-card.json",
   "src/agent.ts",
   "src/server.ts",
   "package.json",
   ".env.example",
 ];
 
-export async function buildProjectContext(
-  projectDir: string,
-): Promise<string> {
+export async function buildProjectContext(projectDir: string): Promise<string> {
   const sections: string[] = [];
 
   for (const file of PROJECT_FILES) {
     try {
-      const content = await fs.readFile(
-        path.join(projectDir, file),
-        "utf-8",
-      );
+      const content = await fs.readFile(path.join(projectDir, file), "utf-8");
       sections.push(`--- ${file} ---\n${content}`);
     } catch {
       // File may not exist, skip it
