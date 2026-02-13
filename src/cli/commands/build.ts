@@ -22,6 +22,7 @@ import {
   applyChanges,
   SYSTEM_PROMPT,
 } from "../services/ai/context.js";
+import { runChatSession } from "./chat.js";
 
 const promptTheme = {
   style: {
@@ -37,6 +38,25 @@ async function projectExists(cwd: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function readAgentUrl(projectDir: string): Promise<string | null> {
+  try {
+    const envContent = await fs.readFile(
+      path.join(projectDir, ".env"),
+      "utf-8",
+    );
+    for (const line of envContent.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("AGENT_URL=")) {
+        const value = trimmed.slice("AGENT_URL=".length).trim();
+        if (value) return value;
+      }
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -180,13 +200,26 @@ export const buildCommand: SlashCommand = {
 
     // Chat loop
     const messages: Message[] = [];
+    let running = true;
 
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
+    const createRl = () => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      rl.on("SIGINT", () => {
+        running = false;
+        rl.close();
+        console.log();
+        context.log.dim("Exited build mode.");
+      });
+      return rl;
+    };
 
-    const question = (prompt: string): Promise<string> =>
+    const question = (
+      rl: readline.Interface,
+      prompt: string,
+    ): Promise<string> =>
       new Promise((resolve, reject) => {
         const onClose = () => reject(new Error("closed"));
         rl.once("close", onClose);
@@ -196,20 +229,12 @@ export const buildCommand: SlashCommand = {
         });
       });
 
-    let running = true;
-
-    // Handle Ctrl+C — exit build mode gracefully
-    rl.on("SIGINT", () => {
-      running = false;
-      rl.close();
-      console.log();
-      context.log.dim("Exited build mode.");
-    });
+    let rl = createRl();
 
     while (running) {
       let userInput: string;
       try {
-        userInput = await question(chatPrompt());
+        userInput = await question(rl, chatPrompt());
       } catch {
         break;
       }
@@ -225,6 +250,57 @@ export const buildCommand: SlashCommand = {
         console.log();
         context.log.dim("Exited build mode.");
         break;
+      }
+
+      // ── /chat sub-command ──────────────────────────────────
+      if (trimmed === "/chat" || trimmed.startsWith("/chat ")) {
+        const chatArg = trimmed.slice("/chat".length).trim();
+        let chatUrl: string | null = chatArg || null;
+
+        // Try to resolve URL from .env if not provided
+        if (!chatUrl) {
+          chatUrl = await readAgentUrl(projectDir);
+          if (chatUrl) {
+            context.log.dim(`Using AGENT_URL from .env: ${chatUrl}`);
+          }
+        }
+
+        // Prompt for URL if still missing
+        if (!chatUrl) {
+          try {
+            chatUrl = await question(rl, chalk.dim("Enter agent URL: "));
+            chatUrl = chatUrl.trim();
+          } catch {
+            break;
+          }
+        }
+
+        if (!chatUrl) {
+          context.log.error("No URL provided.");
+          console.log();
+          continue;
+        }
+
+        const baseUrl = chatUrl.replace(/\/+$/, "");
+        try {
+          new URL(baseUrl);
+        } catch {
+          context.log.error(`Invalid URL: ${chatUrl}`);
+          console.log();
+          continue;
+        }
+
+        // Close build readline before entering chat session
+        rl.close();
+
+        await runChatSession(baseUrl, context);
+
+        // Return to build mode
+        console.log();
+        context.log.info("Back to build mode.");
+        console.log();
+        rl = createRl();
+        continue;
       }
 
       // Build context from current project files

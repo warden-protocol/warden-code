@@ -88,6 +88,8 @@ Your agent will be available at `http://localhost:3000`.
 
 Run `/build` inside a scaffolded project to enter an AI-powered chat session. Describe the changes you want and the LLM will modify your agent code directly. Requires an OpenAI or Anthropic API key (configured on first run).
 
+While in build mode you can type `/chat` to talk to your running agent without leaving the session. The URL is resolved automatically from your project's `.env` (`AGENT_URL`), or you can pass it explicitly (e.g. `/chat http://localhost:3000`). Type `/exit` inside the chat sub-session to return to build mode.
+
 ## Chatting with an Agent
 
 Run `/chat http://localhost:3000` to interact with a running agent. The CLI auto-detects whether the agent supports A2A, LangGraph, or both, and prompts you to choose when multiple protocols are available.
