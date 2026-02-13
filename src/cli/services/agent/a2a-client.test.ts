@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { A2AClient, AgentRequestError, AgentProtocolError } from "./a2a-client.js";
+import {
+  A2AClient,
+  AgentRequestError,
+  AgentProtocolError,
+} from "./a2a-client.js";
 
 const originalFetch = globalThis.fetch;
 
-function mockFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input.toString();
-    return Promise.resolve(handler(url, init));
-  }) as unknown as typeof fetch;
+function mockFetch(
+  handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
+) {
+  globalThis.fetch = vi.fn(
+    (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      return Promise.resolve(handler(url, init));
+    },
+  ) as unknown as typeof fetch;
 }
 
 function jsonResponse(body: unknown) {
@@ -117,9 +125,7 @@ describe("A2AClient", () => {
           jsonrpc: "2.0",
           id: "test",
           result: {
-            history: [
-              { role: "agent", parts: [{ kind: "text", text: "ok" }] },
-            ],
+            history: [{ role: "agent", parts: [{ kind: "text", text: "ok" }] }],
           },
         });
       });
@@ -130,7 +136,9 @@ describe("A2AClient", () => {
       expect(capturedBody).toBeDefined();
       expect(capturedBody!.jsonrpc).toBe("2.0");
       expect(capturedBody!.method).toBe("message/send");
-      expect((capturedBody!.params as Record<string, unknown>).message).toBeDefined();
+      expect(
+        (capturedBody!.params as Record<string, unknown>).message,
+      ).toBeDefined();
     });
 
     it("should throw AgentRequestError on non-200 response", async () => {

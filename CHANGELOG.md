@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Prompt for agent URL if no `.env` and no argument provided
 - `/release` Claude Code skill for automated release preparation (.claude/skills/release)
 
+### Fixes
+
+- Fixed `RequestInfo` type errors in test files that broke `pnpm build`
+
 ### Improvements
 
 - Extracted `runChatSession()` as a reusable function from `chat.ts` for code reuse (6e67cc6)

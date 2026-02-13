@@ -4,7 +4,7 @@ import { probeAgent } from "./probe.js";
 const originalFetch = globalThis.fetch;
 
 function mockFetch(handler: (url: string) => Response | Promise<Response>) {
-  globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+  globalThis.fetch = vi.fn((input: string | URL | Request) => {
     const url = typeof input === "string" ? input : input.toString();
     return Promise.resolve(handler(url));
   }) as unknown as typeof fetch;

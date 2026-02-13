@@ -4,11 +4,15 @@ import { AgentRequestError } from "./a2a-client.js";
 
 const originalFetch = globalThis.fetch;
 
-function mockFetch(handler: (url: string, init?: RequestInit) => Response | Promise<Response>) {
-  globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input.toString();
-    return Promise.resolve(handler(url, init));
-  }) as unknown as typeof fetch;
+function mockFetch(
+  handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
+) {
+  globalThis.fetch = vi.fn(
+    (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      return Promise.resolve(handler(url, init));
+    },
+  ) as unknown as typeof fetch;
 }
 
 function jsonResponse(body: unknown) {
@@ -190,7 +194,11 @@ describe("LangGraphClient", () => {
       expect(capturedBody).toBeDefined();
       expect(capturedBody!.assistant_id).toBe("default");
       expect(
-        ((capturedBody!.input as Record<string, unknown>).messages as Array<Record<string, unknown>>)[0],
+        (
+          (capturedBody!.input as Record<string, unknown>).messages as Array<
+            Record<string, unknown>
+          >
+        )[0],
       ).toEqual({ role: "human", content: "test message" });
     });
 
