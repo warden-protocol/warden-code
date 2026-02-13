@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.1.2 (2026-02-13)
+
+### Improvements
+
+- Clarified `/new` wizard: "Select a model" renamed to "Select a template" with expanded descriptions
+- Clarified capability selection: "Select capability" renamed to "Select a communication style for your agent"
+- Added explanation of what skills are before the skills prompt
+- Configuration summary now shows "Template" instead of "Model"
+- Added "What was created" section after scaffolding, listing key files and their purpose
+- Expanded "Next steps" with numbered guidance and annotated manual commands
+- Clarified Build Mode Setup: explains the AI provider is for the coding assistant, not the agent
+- Build mode entry message now mentions `/chat` sub-command
+- `/chat` probe failure now shows actionable instructions on how to start the agent
+- `/chat` in build mode shows a tip to ensure the agent is running
+
 ## 1.1.1 (2026-02-13)
 
 ### Fixes

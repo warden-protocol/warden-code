@@ -95,17 +95,19 @@ export const newCommand: SlashCommand = {
       });
 
       const template = await select({
-        message: "Select a model:",
+        message: "Select a template:",
         choices: [
           {
             value: "echo" as const,
             name: "Blank",
-            description: "Minimal A2A server that echoes input",
+            description:
+              "A minimal A2A server with no AI model — echoes input back (good for testing)",
           },
           {
             value: "openai" as const,
             name: "OpenAI",
-            description: "Full-featured agent with OpenAI/GPT integration",
+            description:
+              "An AI-powered agent using OpenAI/GPT — can reason and respond to tasks",
           },
         ],
         theme: promptTheme,
@@ -120,17 +122,19 @@ export const newCommand: SlashCommand = {
       }
 
       const capability = await select({
-        message: "Select capability:",
+        message: "Select a communication style for your agent:",
         choices: [
           {
             value: "streaming" as const,
             name: "Streaming",
-            description: "Stream responses as they are generated",
+            description:
+              "Sends tokens as they are generated — fast first-byte, ideal for chat UIs",
           },
           {
             value: "multiTurn" as const,
             name: "Multi-turn conversations",
-            description: "Support back-and-forth conversations",
+            description:
+              "Remembers context across messages — ideal for back-and-forth dialogue",
           },
         ],
         theme: promptTheme,
@@ -138,6 +142,12 @@ export const newCommand: SlashCommand = {
 
       // Skills configuration
       const skills: AgentSkill[] = [];
+      console.log(
+        chalk.dim(
+          'Skills describe what your agent can do (e.g. "summarize text", "translate").\n' +
+            "They are advertised in the agent card so other agents and clients can discover capabilities.",
+        ),
+      );
       const addSkills = await confirm({
         message: "Would you like to define skills?",
         default: true,
@@ -208,7 +218,7 @@ export const newCommand: SlashCommand = {
         `  Description:  ${chalk.rgb(199, 255, 142)(config.description)}`,
       );
       console.log(
-        `  Model:        ${chalk.rgb(199, 255, 142)(config.template)}`,
+        `  Template:     ${chalk.rgb(199, 255, 142)(config.template)}`,
       );
       console.log(
         `  Streaming:    ${config.capabilities.streaming ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
@@ -268,17 +278,36 @@ export const newCommand: SlashCommand = {
         }
 
         console.log();
-        context.log.dim("Next steps:");
+        console.log(chalk.bold("What was created:"));
         context.log.dim(
-          `  /build${targetPath ? ` ${targetPath}` : ""}  — enter AI chat mode to build your agent`,
+          "  src/agent.ts    — your agent's logic (this is the main file you'll edit)",
+        );
+        context.log.dim(
+          "  src/server.ts   — HTTP server that exposes your agent via A2A and LangGraph",
+        );
+        context.log.dim(
+          "  agent-card.json — metadata other agents use to discover yours",
+        );
+        context.log.dim(
+          "  .env            — environment variables (port, URL, API keys)",
+        );
+        console.log();
+        console.log(chalk.bold("Next steps:"));
+        context.log.dim(
+          `  1. /build${targetPath ? ` ${targetPath}` : ""}  — enter AI chat mode to build your agent`,
+        );
+        context.log.dim(
+          "  2. /build /chat — talk to your running agent from inside build mode",
         );
         console.log();
         context.log.dim("Or build and run manually (in a new terminal):");
         if (targetPath) {
           context.log.dim(`  cd ${targetPath}`);
         }
-        context.log.dim("  npm run build");
-        context.log.dim("  npm run agent");
+        context.log.dim("  npm run build   — compile TypeScript");
+        context.log.dim(
+          "  npm run agent   — start the agent on http://localhost:3000",
+        );
         console.log();
       } catch (error) {
         spinner.fail("Failed to generate agent");

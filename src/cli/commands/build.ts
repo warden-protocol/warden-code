@@ -100,7 +100,12 @@ const MODEL_CHOICES = {
 async function setupWizard(cwd: string): Promise<BuildConfig> {
   console.log();
   console.log(chalk.bold("Build Mode Setup"));
-  console.log(chalk.dim("Configure your AI provider.\n"));
+  console.log(
+    chalk.dim(
+      "Build mode uses an AI model to help you write your agent's code.\n" +
+        "Choose a provider and model for the coding assistant (this is not your agent's AI).\n",
+    ),
+  );
 
   const provider = await select({
     message: "Select AI provider:",
@@ -194,7 +199,8 @@ export const buildCommand: SlashCommand = {
     console.log(chalk.bold("Build Mode") + chalk.dim(` (${config.model})`));
     console.log(
       chalk.dim(
-        "Describe what you want your agent to do. Type /exit to leave.\n",
+        "Describe what you want your agent to do and the AI will edit your code.\n" +
+          "Type /chat to talk to your running agent, or /exit to leave.\n",
       ),
     );
 
@@ -293,6 +299,9 @@ export const buildCommand: SlashCommand = {
         // Close build readline before entering chat session
         rl.close();
 
+        context.log.dim(
+          "Tip: make sure your agent is running (npm run agent) in another terminal.",
+        );
         await runChatSession(baseUrl, context);
 
         // Return to build mode

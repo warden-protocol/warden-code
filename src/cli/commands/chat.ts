@@ -93,7 +93,13 @@ export async function runChatSession(
     probeResult = await probeAgent(baseUrl);
   } catch {
     spinner.fail("Could not reach agent");
-    context.log.error(`Connection failed. Is the agent running at ${baseUrl}?`);
+    context.log.error(`Connection failed. No agent is running at ${baseUrl}.`);
+    console.log();
+    context.log.dim("To start your agent, open a new terminal and run:");
+    context.log.dim("  npm run build");
+    context.log.dim("  npm run agent");
+    console.log();
+    context.log.dim("Once the agent is running, try /chat again.");
     return;
   }
 
