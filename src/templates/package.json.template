@@ -9,7 +9,7 @@
     "agent": "node dist/server.js"
   },
   "dependencies": {
-    "@wardenprotocol/agent-kit": "^0.3.1",
+    "@wardenprotocol/agent-kit": "^0.5.0",
     "dotenv": "^16.4.0"{{model_dependencies}}
   },
   "devDependencies": {

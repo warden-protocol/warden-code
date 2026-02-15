@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.1.4 (2026-02-15)
+
+### Improvements
+
+- Bumped `@wardenprotocol/agent-kit` template dependency from `^0.3.1` to `^0.5.0`
+
 ## 1.1.3 (2026-02-13)
 
 ### Fixes
