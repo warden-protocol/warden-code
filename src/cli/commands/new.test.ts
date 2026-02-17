@@ -55,6 +55,70 @@ describe("validateAgentName", () => {
   });
 });
 
+// Mirrors the inline validation in the x402 wallet address prompt.
+function validateWalletAddress(value: string): string | boolean {
+  return (
+    /^0x[a-fA-F0-9]{40}$/.test(value.trim()) ||
+    "Enter a valid Ethereum address (0x followed by 40 hex characters)"
+  );
+}
+
+describe("validateWalletAddress", () => {
+  describe("valid addresses", () => {
+    const validAddresses = [
+      "0x1234567890abcdef1234567890abcdef12345678",
+      "0xABCDEF1234567890ABCDEF1234567890ABCDEF12",
+      "0xaabbccddee11223344556677889900aabbccddee",
+      "0x0000000000000000000000000000000000000000",
+      "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+    ];
+
+    it.each(validAddresses)('should accept "%s" as valid', (addr) => {
+      expect(validateWalletAddress(addr)).toBe(true);
+    });
+
+    it("should trim whitespace before validating", () => {
+      expect(
+        validateWalletAddress("  0x1234567890abcdef1234567890abcdef12345678  "),
+      ).toBe(true);
+    });
+  });
+
+  describe("invalid addresses", () => {
+    const invalidCases = [
+      { addr: "", reason: "empty string" },
+      { addr: "0x", reason: "0x prefix only" },
+      {
+        addr: "1234567890abcdef1234567890abcdef12345678",
+        reason: "missing 0x prefix",
+      },
+      {
+        addr: "0x1234567890abcdef1234567890abcdef1234567",
+        reason: "39 hex chars (too short)",
+      },
+      {
+        addr: "0x1234567890abcdef1234567890abcdef123456789",
+        reason: "41 hex chars (too long)",
+      },
+      {
+        addr: "0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+        reason: "non-hex characters",
+      },
+      {
+        addr: "0x1234567890abcdef1234567890abcdef1234567z",
+        reason: "trailing non-hex char",
+      },
+      { addr: "hello world", reason: "arbitrary string" },
+    ];
+
+    it.each(invalidCases)('should reject "$addr" ($reason)', ({ addr }) => {
+      expect(validateWalletAddress(addr)).toBe(
+        "Enter a valid Ethereum address (0x followed by 40 hex characters)",
+      );
+    });
+  });
+});
+
 describe("toPackageName", () => {
   describe("basic conversions", () => {
     const cases = [
