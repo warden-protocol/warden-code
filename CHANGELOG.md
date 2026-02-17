@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.2.0 (2026-02-17)
+
+### Features
+
+- Optional x402 payment support in `/new` wizard: generated agents can charge per request using USDC on Base via Coinbase's HTTP 402 protocol
+- When enabled, generated `server.ts` wraps AgentServer with Express + `@x402/express` middleware
+- Wizard prompts for wallet address, price per request, and network (Base Sepolia or Base mainnet)
+- Generated `.env`, `package.json`, and `README.md` include x402 configuration when enabled
+- CORS headers included in x402 Express wrapper for browser-based clients
+
+### Fixes
+
+- Fixed spinner not animating during `npm install` in `/new` (switched from blocking `execSync` to async `exec`)
+- Fixed `ora` spinner stealing stdin by setting `discardStdin: false`
+
+### Improvements
+
+- Aligned banner and help text indentation
+- Added wallet address validation tests and x402 template integration tests (198 total tests)
+
 ## 1.1.4 (2026-02-15)
 
 ### Improvements
