@@ -16,6 +16,6 @@ export function createContext(cwd: string): CliContext {
   return {
     cwd,
     log: createLogger(),
-    spinner: (msg: string) => ora(msg),
+    spinner: (msg: string) => ora({ text: msg, discardStdin: false }),
   };
 }
