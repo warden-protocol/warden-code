@@ -487,7 +487,9 @@ describe("template integration (actual template files)", () => {
       expect(result).toContain("app.listen(PORT");
       expect(result).toContain("$0.05");
       expect(result).toContain("eip155:84532");
-      expect(result).not.toContain("server.listen(PORT)");
+      // Runtime conditional: Express branch + server.listen fallback
+      expect(result).toContain("if (process.env.X402_PAY_TO_ADDRESS)");
+      expect(result).toContain("server.listen(PORT)");
       expect(result).not.toContain("{{");
     });
 

@@ -62,96 +62,114 @@ import type { Network } from "@x402/core/types";`
     : "";
 
   const x402Listen = hasX402
-    ? `const a2aHandler = server.getA2AServer().getHandler();
-const langGraphHandler = server.getLangGraphServer().getHandler();
+    ? `if (process.env.X402_PAY_TO_ADDRESS) {
+  const a2aHandler = server.getA2AServer().getHandler();
+  const langGraphHandler = server.getLangGraphServer().getHandler();
 
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
-});
-const resourceServer = new x402ResourceServer(facilitatorClient);
-registerExactEvmScheme(resourceServer);
+  const facilitatorClient = new HTTPFacilitatorClient({
+    url: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
+  });
+  const resourceServer = new x402ResourceServer(facilitatorClient);
+  registerExactEvmScheme(resourceServer);
 
-const app = express();
+  const app = express();
 
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, PAYMENT-SIGNATURE, X-PAYMENT, Access-Control-Expose-Headers");
-  res.setHeader("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE");
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  next();
-});
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, PAYMENT-SIGNATURE, X-PAYMENT, Access-Control-Expose-Headers");
+    res.setHeader("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE");
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
 
-app.use(
-  paymentMiddleware(
-    {
-      "POST /": {
-        accepts: [
-          {
-            scheme: "exact",
-            price: process.env.X402_PRICE || "${config.x402!.price}",
-            network: (process.env.X402_NETWORK || "${config.x402!.network}") as Network,
-            payTo: process.env.X402_PAY_TO_ADDRESS!,
-          },
-        ],
-        description: "{{description}}",
-        mimeType: "application/json",
+  app.use(
+    paymentMiddleware(
+      {
+        "POST /": {
+          accepts: [
+            {
+              scheme: "exact",
+              price: process.env.X402_PRICE || "${config.x402!.price}",
+              network: (process.env.X402_NETWORK || "${config.x402!.network}") as Network,
+              payTo: process.env.X402_PAY_TO_ADDRESS,
+            },
+          ],
+          description: "{{description}}",
+          mimeType: "application/json",
+        },
       },
-    },
-    resourceServer,
-  ),
-);
+      resourceServer,
+    ),
+  );
 
-app.all("*", (req, res) => {
-  const url = req.url || "/";
-  const isLangGraph =
-    url.startsWith("/info") ||
-    url.startsWith("/ok") ||
-    url.startsWith("/assistants") ||
-    url.startsWith("/threads") ||
-    url.startsWith("/runs") ||
-    url.startsWith("/store");
-  const routeHandler = isLangGraph ? langGraphHandler : a2aHandler;
-  routeHandler(req, res);
-});
+  app.all("*", (req, res) => {
+    const url = req.url || "/";
+    const isLangGraph =
+      url.startsWith("/info") ||
+      url.startsWith("/ok") ||
+      url.startsWith("/assistants") ||
+      url.startsWith("/threads") ||
+      url.startsWith("/runs") ||
+      url.startsWith("/store");
+    const routeHandler = isLangGraph ? langGraphHandler : a2aHandler;
+    routeHandler(req, res);
+  });
 
-app.listen(PORT, () => {
-  {{model_startup_log}}
-  console.log(\`{{name}} (Dual Protocol + x402 Payments)\`);
-  console.log(\`Server: \${AGENT_URL}\`);
-  console.log();
-  console.log("x402 Payments:");
-  console.log(\`  Price (USDC):      \${process.env.X402_PRICE || "${config.x402!.price}"}\`);
-  console.log(\`  Network:    \${process.env.X402_NETWORK || "${config.x402!.network}"}\`);
-  console.log(\`  Pay To:     \${process.env.X402_PAY_TO_ADDRESS || "NOT SET"}\`);
-  console.log();
-  console.log("A2A Protocol:");
-  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
-  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
-  console.log();
-  console.log("LangGraph Protocol:");
-  console.log(\`  Info:       \${AGENT_URL}/info\`);
-  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
-  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
-  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
-});`
+  app.listen(PORT, () => {
+    {{model_startup_log}}
+    console.log(\\\`{{name}} (Dual Protocol + x402 Payments)\\\`);
+    console.log(\\\`Server: \\\${AGENT_URL}\\\`);
+    console.log();
+    console.log("x402 Payments:");
+    console.log(\\\`  Price (USDC): \\\${process.env.X402_PRICE || "${config.x402!.price}"}\\\`);
+    console.log(\\\`  Network:      \\\${process.env.X402_NETWORK || "${config.x402!.network}"}\\\`);
+    console.log(\\\`  Pay To:       \\\${process.env.X402_PAY_TO_ADDRESS}\\\`);
+    console.log();
+    console.log("A2A Protocol:");
+    console.log(\\\`  Agent Card: \\\${AGENT_URL}/.well-known/agent-card.json\\\`);
+    console.log(\\\`  JSON-RPC:   POST \\\${AGENT_URL}/\\\`);
+    console.log();
+    console.log("LangGraph Protocol:");
+    console.log(\\\`  Info:       \\\${AGENT_URL}/info\\\`);
+    console.log(\\\`  Assistants: \\\${AGENT_URL}/assistants\\\`);
+    console.log(\\\`  Threads:    \\\${AGENT_URL}/threads\\\`);
+    console.log(\\\`  Runs:       \\\${AGENT_URL}/runs\\\`);
+  });
+} else {
+  server.listen(PORT).then(() => {
+    {{model_startup_log}}
+    console.log(\\\`{{name}} (Dual Protocol)\\\`);
+    console.log(\\\`Server: \\\${AGENT_URL}\\\`);
+    console.log();
+    console.log("A2A Protocol:");
+    console.log(\\\`  Agent Card: \\\${AGENT_URL}/.well-known/agent-card.json\\\`);
+    console.log(\\\`  JSON-RPC:   POST \\\${AGENT_URL}/\\\`);
+    console.log();
+    console.log("LangGraph Protocol:");
+    console.log(\\\`  Info:       \\\${AGENT_URL}/info\\\`);
+    console.log(\\\`  Assistants: \\\${AGENT_URL}/assistants\\\`);
+    console.log(\\\`  Threads:    \\\${AGENT_URL}/threads\\\`);
+    console.log(\\\`  Runs:       \\\${AGENT_URL}/runs\\\`);
+  });
+}`
     : `server.listen(PORT).then(() => {
   {{model_startup_log}}
-  console.log(\`{{name}} (Dual Protocol)\`);
-  console.log(\`Server: \${AGENT_URL}\`);
+  console.log(\\\`{{name}} (Dual Protocol)\\\`);
+  console.log(\\\`Server: \\\${AGENT_URL}\\\`);
   console.log();
   console.log("A2A Protocol:");
-  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
-  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
+  console.log(\\\`  Agent Card: \\\${AGENT_URL}/.well-known/agent-card.json\\\`);
+  console.log(\\\`  JSON-RPC:   POST \\\${AGENT_URL}/\\\`);
   console.log();
   console.log("LangGraph Protocol:");
-  console.log(\`  Info:       \${AGENT_URL}/info\`);
-  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
-  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
-  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
+  console.log(\\\`  Info:       \\\${AGENT_URL}/info\\\`);
+  console.log(\\\`  Assistants: \\\${AGENT_URL}/assistants\\\`);
+  console.log(\\\`  Threads:    \\\${AGENT_URL}/threads\\\`);
+  console.log(\\\`  Runs:       \\\${AGENT_URL}/runs\\\`);
 });`;
 
   const x402Dependencies = hasX402
