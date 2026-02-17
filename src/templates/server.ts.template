@@ -2,6 +2,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { AgentServer } from "@wardenprotocol/agent-kit";
 import { handler } from "./agent.js";
+{{x402_imports}}
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "localhost";
@@ -17,18 +18,4 @@ const server = new AgentServer({
   handler,
 });
 
-server.listen(PORT).then(() => {
-  {{model_startup_log}}
-  console.log(`{{name}} (Dual Protocol)`);
-  console.log(`Server: ${AGENT_URL}`);
-  console.log();
-  console.log("A2A Protocol:");
-  console.log(`  Agent Card: ${AGENT_URL}/.well-known/agent-card.json`);
-  console.log(`  JSON-RPC:   POST ${AGENT_URL}/`);
-  console.log();
-  console.log("LangGraph Protocol:");
-  console.log(`  Info:       ${AGENT_URL}/info`);
-  console.log(`  Assistants: ${AGENT_URL}/assistants`);
-  console.log(`  Threads:    ${AGENT_URL}/threads`);
-  console.log(`  Runs:       ${AGENT_URL}/runs`);
-});
+{{x402_listen}}

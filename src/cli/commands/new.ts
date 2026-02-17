@@ -1,4 +1,7 @@
-import { execSync } from "node:child_process";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
 import * as path from "node:path";
 import { input, select, confirm, checkbox, password } from "@inquirer/prompts";
 import chalk from "chalk";
@@ -192,6 +195,69 @@ export const newCommand: SlashCommand = {
         }
       }
 
+      // x402 payment configuration
+      let x402Config: AgentConfig["x402"];
+      let x402PayToAddress: string | undefined;
+      console.log(
+        chalk.dim(
+          "x402 lets your agent charge per request using USDC on Base.\n" +
+            "Clients pay automatically via the x402 protocol (HTTP 402).",
+        ),
+      );
+      const enableX402 = await confirm({
+        message: "Enable x402 payments?",
+        default: false,
+        theme: promptTheme,
+      });
+
+      if (enableX402) {
+        x402PayToAddress = await input({
+          message: "Wallet address to receive payments (0x...):",
+          validate: (v) =>
+            /^0x[a-fA-F0-9]{40}$/.test(v.trim()) ||
+            "Enter a valid Ethereum address (0x followed by 40 hex characters)",
+          theme: promptTheme,
+        });
+
+        const x402Price = await input({
+          message: "Price per request (USDC):",
+          default: "0.01",
+          theme: promptTheme,
+        });
+
+        const x402Network = await select({
+          message: "Payment network:",
+          choices: [
+            {
+              value: "eip155:84532",
+              name: "Base Sepolia (testnet)",
+              description:
+                "Free test USDC, uses the default x402.org facilitator",
+            },
+            {
+              value: "eip155:8453",
+              name: "Base (mainnet)",
+              description:
+                "Real USDC payments; requires Coinbase CDP facilitator and API keys",
+            },
+          ],
+          theme: promptTheme,
+        });
+
+        if (x402Network === "eip155:8453") {
+          console.log(
+            chalk.dim(
+              "\nBase mainnet requires the Coinbase CDP facilitator.\n" +
+                "Set X402_FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402 in .env\n" +
+                "and configure CDP_API_KEY_ID / CDP_API_KEY_SECRET.\n" +
+                "See: https://docs.cdp.coinbase.com/x402/quickstart-for-sellers\n",
+            ),
+          );
+        }
+
+        x402Config = { price: x402Price, network: x402Network };
+      }
+
       // Build config
       const packageName = toPackageName(name);
       const config: AgentConfig = {
@@ -204,6 +270,7 @@ export const newCommand: SlashCommand = {
           multiTurn: capability === "multiTurn",
         },
         skills,
+        x402: x402Config,
       };
 
       // Confirm and generate
@@ -228,6 +295,9 @@ export const newCommand: SlashCommand = {
       );
       console.log(
         `  Skills:       ${config.skills.length > 0 ? chalk.rgb(199, 255, 142)(config.skills.map((s) => s.name).join(", ")) : chalk.dim("None")}`,
+      );
+      console.log(
+        `  x402:         ${config.x402 ? chalk.rgb(199, 255, 142)(`$${config.x402.price} on ${config.x402.network}`) : chalk.dim("Disabled")}`,
       );
       console.log(chalk.dim("─".repeat(40)));
       console.log();
@@ -259,6 +329,14 @@ export const newCommand: SlashCommand = {
             "OPENAI_MODEL=gpt-4o-mini",
           );
         }
+        if (config.x402 && x402PayToAddress) {
+          envLines.push(
+            `X402_PAY_TO_ADDRESS=${x402PayToAddress}`,
+            `X402_PRICE=${config.x402.price}`,
+            `X402_NETWORK=${config.x402.network}`,
+            "X402_FACILITATOR_URL=https://x402.org/facilitator",
+          );
+        }
         envLines.push("");
         await writeFile(path.join(targetDir, ".env"), envLines.join("\n"));
 
@@ -270,7 +348,7 @@ export const newCommand: SlashCommand = {
           .spinner("Installing dependencies...")
           .start();
         try {
-          execSync("npm install", { cwd: targetDir, stdio: "ignore" });
+          await execAsync("npm install", { cwd: targetDir });
           installSpinner.succeed("Dependencies installed!");
         } catch {
           installSpinner.fail("Failed to install dependencies");

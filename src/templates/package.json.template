@@ -10,10 +10,10 @@
   },
   "dependencies": {
     "@wardenprotocol/agent-kit": "^0.5.0",
-    "dotenv": "^16.4.0"{{model_dependencies}}
+    "dotenv": "^16.4.0"{{model_dependencies}}{{x402_dependencies}}
   },
   "devDependencies": {
     "@types/node": "^22.8.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3"{{x402_dev_dependencies}}
   }
 }

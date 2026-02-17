@@ -35,6 +35,10 @@ export interface AgentConfig {
     multiTurn: boolean;
   };
   skills: AgentSkill[];
+  x402?: {
+    price: string;
+    network: string;
+  };
 }
 
 export interface AgentSkill {

@@ -51,7 +51,146 @@ export function processTemplate(content: string, config: AgentConfig): string {
   console.log(\`API Key: \${hasApiKey ? "configured" : "NOT SET"}\`);`
       : "";
 
+  const hasX402 = !!config.x402;
+
+  const x402Imports = hasX402
+    ? `import express from "express";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { registerExactEvmScheme } from "@x402/evm/exact/server";
+import type { Network } from "@x402/core/types";`
+    : "";
+
+  const x402Listen = hasX402
+    ? `const a2aHandler = server.getA2AServer().getHandler();
+const langGraphHandler = server.getLangGraphServer().getHandler();
+
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator",
+});
+const resourceServer = new x402ResourceServer(facilitatorClient);
+registerExactEvmScheme(resourceServer);
+
+const app = express();
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, PAYMENT-SIGNATURE, X-PAYMENT, Access-Control-Expose-Headers");
+  res.setHeader("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
+app.use(
+  paymentMiddleware(
+    {
+      "POST /": {
+        accepts: [
+          {
+            scheme: "exact",
+            price: process.env.X402_PRICE || "${config.x402!.price}",
+            network: (process.env.X402_NETWORK || "${config.x402!.network}") as Network,
+            payTo: process.env.X402_PAY_TO_ADDRESS!,
+          },
+        ],
+        description: "{{description}}",
+        mimeType: "application/json",
+      },
+    },
+    resourceServer,
+  ),
+);
+
+app.all("*", (req, res) => {
+  const url = req.url || "/";
+  const isLangGraph =
+    url.startsWith("/info") ||
+    url.startsWith("/ok") ||
+    url.startsWith("/assistants") ||
+    url.startsWith("/threads") ||
+    url.startsWith("/runs") ||
+    url.startsWith("/store");
+  const routeHandler = isLangGraph ? langGraphHandler : a2aHandler;
+  routeHandler(req, res);
+});
+
+app.listen(PORT, () => {
+  {{model_startup_log}}
+  console.log(\`{{name}} (Dual Protocol + x402 Payments)\`);
+  console.log(\`Server: \${AGENT_URL}\`);
+  console.log();
+  console.log("x402 Payments:");
+  console.log(\`  Price (USDC):      \${process.env.X402_PRICE || "${config.x402!.price}"}\`);
+  console.log(\`  Network:    \${process.env.X402_NETWORK || "${config.x402!.network}"}\`);
+  console.log(\`  Pay To:     \${process.env.X402_PAY_TO_ADDRESS || "NOT SET"}\`);
+  console.log();
+  console.log("A2A Protocol:");
+  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
+  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
+  console.log();
+  console.log("LangGraph Protocol:");
+  console.log(\`  Info:       \${AGENT_URL}/info\`);
+  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
+  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
+  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
+});`
+    : `server.listen(PORT).then(() => {
+  {{model_startup_log}}
+  console.log(\`{{name}} (Dual Protocol)\`);
+  console.log(\`Server: \${AGENT_URL}\`);
+  console.log();
+  console.log("A2A Protocol:");
+  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
+  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
+  console.log();
+  console.log("LangGraph Protocol:");
+  console.log(\`  Info:       \${AGENT_URL}/info\`);
+  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
+  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
+  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
+});`;
+
+  const x402Dependencies = hasX402
+    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@x402/evm": "^2.3.0"`
+    : "";
+
+  const x402DevDependencies = hasX402
+    ? `,\n    "@types/express": "^5.0.0"`
+    : "";
+
+  const x402EnvConfig = hasX402
+    ? `X402_PAY_TO_ADDRESS=0xYourWalletAddress\nX402_PRICE=${config.x402!.price}\nX402_NETWORK=${config.x402!.network}\nX402_FACILITATOR_URL=https://x402.org/facilitator\n`
+    : "";
+
+  const x402EnvSetup = hasX402
+    ? `## x402 Payments
+
+This agent uses [x402](https://x402.org) to charge per request using USDC.
+
+Set the following environment variables in \`.env\`:
+
+- \`X402_PAY_TO_ADDRESS\` \u2014 your wallet address to receive payments
+- \`X402_PRICE\` \u2014 price per request (default: ${config.x402!.price})
+- \`X402_NETWORK\` \u2014 blockchain network (default: ${config.x402!.network})
+- \`X402_FACILITATOR_URL\` \u2014 facilitator service URL
+
+`
+    : "";
+
+  // x402 structural placeholders are replaced first so their content
+  // (which may contain {{name}}, {{description}}, {{model_startup_log}})
+  // gets resolved by the subsequent replacements.
   return content
+    .replace(/\{\{x402_imports\}\}/g, x402Imports)
+    .replace(/\{\{x402_listen\}\}/g, x402Listen)
+    .replace(/\{\{x402_dependencies\}\}/g, x402Dependencies)
+    .replace(/\{\{x402_dev_dependencies\}\}/g, x402DevDependencies)
+    .replace(/\{\{x402_env_config\}\}/g, x402EnvConfig)
+    .replace(/\{\{x402_env_setup\}\}/g, x402EnvSetup)
     .replace(/\{\{name\}\}/g, config.name)
     .replace(/\{\{description\}\}/g, config.description)
     .replace(/\{\{skills\}\}/g, skillsStr)
@@ -73,15 +212,7 @@ export function processTemplate(content: string, config: AgentConfig): string {
     .replace(
       /\{\{env_setup\}\}/g,
       config.template === "openai"
-        ? `Copy the example environment file and configure your API key:
-
-\`\`\`bash
-cp .env.example .env
-\`\`\`
-
-Edit \`.env\` and set your \`OPENAI_API_KEY\`.
-
-`
+        ? `Copy the example environment file and configure your API key:\n\n\`\`\`bash\ncp .env.example .env\n\`\`\`\n\nEdit \`.env\` and set your \`OPENAI_API_KEY\`.\n\n`
         : "",
     )
     .replace(
