@@ -36,7 +36,7 @@ export function createHelpCommand(registry: CommandRegistry): SlashCommand {
       }
 
       console.log();
-      console.log(chalk.bold("Available Commands:"));
+      console.log(chalk.bold("  Available Commands:"));
       console.log();
       for (const command of registry.all()) {
         console.log(commandHelp(command.name, command.description));
