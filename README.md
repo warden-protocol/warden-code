@@ -82,7 +82,7 @@ my-agent/
 ```bash
 cd my-agent
 npm run build
-npm run agent
+npm start
 ```
 
 Your agent will be available at `http://localhost:3000`.
