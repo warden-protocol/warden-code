@@ -57,102 +57,19 @@ export function processTemplate(content: string, config: AgentConfig): string {
   const hasSvm = accepts.some((a) => a.network.startsWith("solana:"));
 
   const x402Imports = hasX402
-    ? [
-        `import express from "express";`,
-        `import { paymentMiddleware, x402ResourceServer } from "@x402/express";`,
-        `import { HTTPFacilitatorClient } from "@x402/core/server";`,
-        `import type { Network } from "@x402/core/types";`,
-        ...(hasEvm
-          ? [`import { registerExactEvmScheme } from "@x402/evm/exact/server";`]
-          : []),
-        ...(hasSvm
-          ? [`import { registerExactSvmScheme } from "@x402/svm/exact/server";`]
-          : []),
-      ].join("\n")
+    ? `import { getPaymentConfig, createPaymentApp } from "./payments.js";`
     : "";
 
   const x402Listen = hasX402
-    ? `// Build x402 accepts from environment variables.
-// Each network section uses X402_<PREFIX>_PAY_TO, X402_<PREFIX>_PRICE, X402_<PREFIX>_NETWORK,
-// and X402_<PREFIX>_FACILITATOR_URL.
-// A network is enabled when its PAY_TO variable is set.
-const x402Networks: { prefix: string; network: string; envPrefix: string; defaultFacilitator: string }[] = [
-  { prefix: "BASE_SEPOLIA", network: "eip155:84532", envPrefix: "X402_BASE_SEPOLIA", defaultFacilitator: "https://x402.org/facilitator" },
-  { prefix: "BASE", network: "eip155:8453", envPrefix: "X402_BASE", defaultFacilitator: "https://facilitator.payai.network" },
-  { prefix: "SOL_DEVNET", network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", envPrefix: "X402_SOL_DEVNET", defaultFacilitator: "https://x402.org/facilitator" },
-  { prefix: "SOL", network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", envPrefix: "X402_SOL", defaultFacilitator: "https://facilitator.payai.network" },
-];
+    ? `const paymentConfig = getPaymentConfig();
 
-const enabledNetworks = x402Networks.filter((n) => process.env[\`\${n.envPrefix}_PAY_TO\`]);
-
-const x402Accepts = enabledNetworks.map((n) => ({
-  scheme: "exact" as const,
-  network: (process.env[\`\${n.envPrefix}_NETWORK\`] || n.network) as Network,
-  payTo: process.env[\`\${n.envPrefix}_PAY_TO\`]!,
-  price: process.env[\`\${n.envPrefix}_PRICE\`] || "0.01",
-}));
-
-if (x402Accepts.length > 0) {
-  // Resolve the facilitator URL for each enabled network.
-  // All enabled networks must use the same facilitator (one resource server per middleware).
-  const facilitatorUrls = enabledNetworks.map(
-    (n) => process.env[\`\${n.envPrefix}_FACILITATOR_URL\`] || n.defaultFacilitator,
+if (paymentConfig) {
+  const app = createPaymentApp(
+    paymentConfig,
+    "{{description}}",
+    server.getA2AServer().getHandler(),
+    server.getLangGraphServer().getHandler(),
   );
-  const uniqueUrls = [...new Set(facilitatorUrls)];
-  if (uniqueUrls.length > 1) {
-    console.error("Error: all enabled x402 networks must use the same facilitator URL.");
-    console.error("Found:", uniqueUrls.join(", "));
-    process.exit(1);
-  }
-
-  const a2aHandler = server.getA2AServer().getHandler();
-  const langGraphHandler = server.getLangGraphServer().getHandler();
-
-  const facilitatorClient = new HTTPFacilitatorClient({ url: uniqueUrls[0] });
-  const resourceServer = new x402ResourceServer(facilitatorClient);
-
-  const hasEvm = x402Accepts.some((a) => a.network.startsWith("eip155:"));
-  const hasSvm = x402Accepts.some((a) => a.network.startsWith("solana:"));
-${hasEvm ? "  if (hasEvm) registerExactEvmScheme(resourceServer);\n" : ""}${hasSvm ? "  if (hasSvm) registerExactSvmScheme(resourceServer);\n" : ""}
-  const app = express();
-
-  app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, PAYMENT-SIGNATURE, X-PAYMENT, Access-Control-Expose-Headers");
-    res.setHeader("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE");
-    if (req.method === "OPTIONS") {
-      res.status(204).end();
-      return;
-    }
-    next();
-  });
-
-  app.use(
-    paymentMiddleware(
-      {
-        "POST /": {
-          accepts: x402Accepts,
-          description: "{{description}}",
-          mimeType: "application/json",
-        },
-      },
-      resourceServer,
-    ),
-  );
-
-  app.all("*", (req, res) => {
-    const url = req.url || "/";
-    const isLangGraph =
-      url.startsWith("/info") ||
-      url.startsWith("/ok") ||
-      url.startsWith("/assistants") ||
-      url.startsWith("/threads") ||
-      url.startsWith("/runs") ||
-      url.startsWith("/store");
-    const routeHandler = isLangGraph ? langGraphHandler : a2aHandler;
-    routeHandler(req, res);
-  });
 
   app.listen(PORT, () => {
     {{model_startup_log}}
@@ -160,8 +77,11 @@ ${hasEvm ? "  if (hasEvm) registerExactEvmScheme(resourceServer);\n" : ""}${hasS
     console.log(\`Server: \${AGENT_URL}\`);
     console.log();
     console.log("x402 Payments:");
-    console.log(\`  Facilitator: \${uniqueUrls[0]}\`);
-    for (const a of x402Accepts) {
+    console.log(\`  Facilitator: \${paymentConfig.facilitatorUrl}\`);
+    if (paymentConfig.isPayAI) {
+      console.log(\`  API Key:     \${process.env.PAYAI_API_KEY_ID ? "configured" : "not set (using free tier)"}\`);
+    }
+    for (const a of paymentConfig.accepts) {
       console.log(\`  \${a.network}: \${a.price} USDC -> \${a.payTo.slice(0, 8)}...\`);
     }
     console.log();
@@ -209,7 +129,7 @@ ${hasEvm ? "  if (hasEvm) registerExactEvmScheme(resourceServer);\n" : ""}${hasS
 });`;
 
   const x402Dependencies = hasX402
-    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}${hasSvm ? `,\n    "@x402/svm": "^2.3.0"` : ""}`
+    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}${hasSvm ? `,\n    "@x402/svm": "^2.3.0"` : ""}`
     : "";
 
   const x402DevDependencies = hasX402
@@ -231,52 +151,55 @@ ${hasEvm ? "  if (hasEvm) registerExactEvmScheme(resourceServer);\n" : ""}${hasS
       id: "eip155:84532",
       prefix: "X402_BASE_SEPOLIA",
       label: "Base Sepolia (testnet)",
-      facilitator: "https://x402.org/facilitator",
     },
-    {
-      id: "eip155:8453",
-      prefix: "X402_BASE",
-      label: "Base (mainnet)",
-      facilitator: "https://facilitator.payai.network",
-    },
+    { id: "eip155:8453", prefix: "X402_BASE", label: "Base (mainnet)" },
     {
       id: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
       prefix: "X402_SOL_DEVNET",
       label: "Solana Devnet",
-      facilitator: "https://x402.org/facilitator",
     },
     {
       id: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       prefix: "X402_SOL",
       label: "Solana Mainnet",
-      facilitator: "https://facilitator.payai.network",
     },
   ];
 
-  const configuredNetworkIds = new Set(accepts.map((a) => a.network));
+  // Determine the default facilitator URL based on whether any mainnet network is configured
+  const mainnetIds = new Set([
+    "eip155:8453",
+    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+  ]);
+  const hasMainnet = accepts.some((a) => mainnetIds.has(a.network));
+  const defaultFacilitator = hasMainnet
+    ? "https://facilitator.payai.network"
+    : "https://x402.org/facilitator";
 
   const x402EnvLines: string[] = [];
+
+  // Facilitator URL (shared across all networks)
+  x402EnvLines.push(`X402_FACILITATOR_URL=${defaultFacilitator}`, "");
+
   for (const net of allNetworks) {
-    const configured = accepts.find((a) => a.network === net.id);
-    if (configured) {
-      x402EnvLines.push(
-        `# ${net.label}`,
-        `${net.prefix}_PAY_TO=${configured.payTo}`,
-        `${net.prefix}_PRICE=${configured.price}`,
-        `${net.prefix}_NETWORK=${configured.network}`,
-        `${net.prefix}_FACILITATOR_URL=${net.facilitator}`,
-        "",
-      );
-    } else {
-      x402EnvLines.push(
-        `# ${net.label} (disabled, set PAY_TO to enable)`,
-        `# ${net.prefix}_PAY_TO=`,
-        `# ${net.prefix}_PRICE=0.01`,
-        `# ${net.prefix}_NETWORK=${net.id}`,
-        `# ${net.prefix}_FACILITATOR_URL=${net.facilitator}`,
-        "",
-      );
-    }
+    const isActive = accepts.some((a) => a.network === net.id);
+    const comment = isActive ? "" : "# ";
+    const hint = isActive ? "" : " (disabled, set PAY_TO to enable)";
+    x402EnvLines.push(
+      `# ${net.label}${hint}`,
+      `${comment}${net.prefix}_PAY_TO=`,
+      `${comment}${net.prefix}_PRICE=0.01`,
+      `${comment}${net.prefix}_NETWORK=${net.id}`,
+      "",
+    );
+  }
+
+  if (hasX402 && hasMainnet) {
+    x402EnvLines.push(
+      "# Facilitator authentication (optional, for paid tiers)",
+      "# PayAI: set PAYAI_API_KEY_ID and PAYAI_API_KEY_SECRET",
+      "# Get credentials at https://merchant.payai.network",
+      "",
+    );
   }
 
   const x402EnvConfig = hasX402 ? x402EnvLines.join("\n") + "\n" : "";
@@ -289,7 +212,7 @@ ${hasEvm ? "  if (hasEvm) registerExactEvmScheme(resourceServer);\n" : ""}${hasS
     .join("\n");
 
   const x402EnvSetup = hasX402
-    ? `## x402 Payments\n\nThis agent uses [x402](https://x402.org) to charge per request using USDC.\n\nPayment configuration is read from environment variables at startup. Each network has four variables:\n\n- \`X402_<NETWORK>_PAY_TO\` \u2014 wallet address to receive payments (set to enable, remove to disable)\n- \`X402_<NETWORK>_PRICE\` \u2014 price per request in USDC (default: 0.01)\n- \`X402_<NETWORK>_NETWORK\` \u2014 network identifier\n- \`X402_<NETWORK>_FACILITATOR_URL\` \u2014 payment facilitator endpoint\n\nAvailable network prefixes: \`X402_BASE_SEPOLIA\`, \`X402_BASE\`, \`X402_SOL_DEVNET\`, \`X402_SOL\`.\n\nTestnet networks default to the x402.org facilitator. Mainnet networks default to the PayAI facilitator (https://facilitator.payai.network).\n\nTo disable payments entirely, remove all \`PAY_TO\` values from \`.env\`.\nTo add a network, uncomment its section in \`.env\` and set the pay-to address.\n\n`
+    ? `## x402 Payments\n\nThis agent uses [x402](https://x402.org) to charge per request using USDC.\n\nPayment configuration is read from environment variables at startup:\n\n- \`X402_FACILITATOR_URL\` \u2014 payment facilitator endpoint (shared across all networks)\n- \`X402_<NETWORK>_PAY_TO\` \u2014 wallet address to receive payments (set to enable, remove to disable)\n- \`X402_<NETWORK>_PRICE\` \u2014 price per request in USDC (default: 0.01)\n- \`X402_<NETWORK>_NETWORK\` \u2014 network identifier\n\nAvailable network prefixes: \`X402_BASE_SEPOLIA\`, \`X402_BASE\`, \`X402_SOL_DEVNET\`, \`X402_SOL\`.\n\n### Facilitator\n\nSet \`X402_FACILITATOR_URL\` in \`.env\` to your facilitator of choice. The [PayAI facilitator](https://facilitator.payai.network) offers 1,000 free settlements per month. For higher volumes, create a merchant account at [merchant.payai.network](https://merchant.payai.network) and set \`PAYAI_API_KEY_ID\` and \`PAYAI_API_KEY_SECRET\` in your \`.env\`. Authentication is handled automatically.\n\nTo disable payments entirely, remove all \`PAY_TO\` values from \`.env\`.\nTo add a network, uncomment its section in \`.env\` and set the pay-to address.\n\n`
     : "";
 
   // x402 structural placeholders are replaced first so their content
@@ -342,6 +265,138 @@ function getTemplateDirName(config: AgentConfig): string {
   return `${config.template}-${capability}`;
 }
 
+/**
+ * Build the payments.ts module content for agents with x402 enabled.
+ * Returns null when x402 is not configured.
+ */
+export function buildPaymentsModule(config: AgentConfig): string | null {
+  if (!config.x402) return null;
+
+  const accepts = config.x402.accepts;
+  const hasEvm = accepts.some((a) => a.network.startsWith("eip155:"));
+  const hasSvm = accepts.some((a) => a.network.startsWith("solana:"));
+
+  const imports = [
+    `import express from "express";`,
+    `import type { Express, RequestHandler } from "express";`,
+    `import { paymentMiddleware, x402ResourceServer } from "@x402/express";`,
+    `import { HTTPFacilitatorClient } from "@x402/core/server";`,
+    `import { createFacilitatorConfig } from "@payai/facilitator";`,
+    `import type { Network } from "@x402/core/types";`,
+    ...(hasEvm
+      ? [`import { registerExactEvmScheme } from "@x402/evm/exact/server";`]
+      : []),
+    ...(hasSvm
+      ? [`import { registerExactSvmScheme } from "@x402/svm/exact/server";`]
+      : []),
+  ].join("\n");
+
+  return `${imports}
+
+export interface PaymentAccept {
+  scheme: "exact";
+  network: Network;
+  payTo: string;
+  price: string;
+}
+
+export interface PaymentConfig {
+  facilitatorUrl: string;
+  isPayAI: boolean;
+  accepts: PaymentAccept[];
+}
+
+const x402Networks: { prefix: string; network: string; envPrefix: string }[] = [
+  { prefix: "BASE_SEPOLIA", network: "eip155:84532", envPrefix: "X402_BASE_SEPOLIA" },
+  { prefix: "BASE", network: "eip155:8453", envPrefix: "X402_BASE" },
+  { prefix: "SOL_DEVNET", network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", envPrefix: "X402_SOL_DEVNET" },
+  { prefix: "SOL", network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", envPrefix: "X402_SOL" },
+];
+
+export function getPaymentConfig(): PaymentConfig | null {
+  const enabledNetworks = x402Networks.filter(
+    (n) => process.env[\`\${n.envPrefix}_PAY_TO\`],
+  );
+
+  const accepts = enabledNetworks.map((n) => ({
+    scheme: "exact" as const,
+    network: (process.env[\`\${n.envPrefix}_NETWORK\`] || n.network) as Network,
+    payTo: process.env[\`\${n.envPrefix}_PAY_TO\`]!,
+    price: process.env[\`\${n.envPrefix}_PRICE\`] || "0.01",
+  }));
+
+  if (accepts.length === 0) return null;
+
+  const facilitatorUrl =
+    process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator";
+
+  return {
+    facilitatorUrl,
+    isPayAI: facilitatorUrl.includes("payai.network"),
+    accepts,
+  };
+}
+
+export function createPaymentApp(
+  config: PaymentConfig,
+  description: string,
+  a2aHandler: RequestHandler,
+  langGraphHandler: RequestHandler,
+): Express {
+  const facilitatorClient = new HTTPFacilitatorClient({
+    ...(config.isPayAI ? createFacilitatorConfig() : {}),
+    url: config.facilitatorUrl,
+  });
+  const resourceServer = new x402ResourceServer(facilitatorClient);
+
+  const hasEvm = config.accepts.some((a) => a.network.startsWith("eip155:"));
+  const hasSvm = config.accepts.some((a) => a.network.startsWith("solana:"));
+${hasEvm ? `  if (hasEvm) registerExactEvmScheme(resourceServer);\n` : ""}${hasSvm ? `  if (hasSvm) registerExactSvmScheme(resourceServer);\n` : ""}
+  const app = express();
+
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, PAYMENT-SIGNATURE, X-PAYMENT, Access-Control-Expose-Headers");
+    res.setHeader("Access-Control-Expose-Headers", "PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE");
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
+  app.use(
+    paymentMiddleware(
+      {
+        "POST /": {
+          accepts: config.accepts,
+          description,
+          mimeType: "application/json",
+        },
+      },
+      resourceServer,
+    ),
+  );
+
+  app.all("*", (req, res, next) => {
+    const url = req.url || "/";
+    const isLangGraph =
+      url.startsWith("/info") ||
+      url.startsWith("/ok") ||
+      url.startsWith("/assistants") ||
+      url.startsWith("/threads") ||
+      url.startsWith("/runs") ||
+      url.startsWith("/store");
+    const routeHandler = isLangGraph ? langGraphHandler : a2aHandler;
+    routeHandler(req, res, next);
+  });
+
+  return app;
+}
+`;
+}
+
 export async function scaffoldAgent(
   targetDir: string,
   config: AgentConfig,
@@ -370,6 +425,15 @@ export async function scaffoldAgent(
   await writeFile(path.join(targetDir, "agent-card.json"), agentCardContent);
   await writeFile(path.join(targetDir, "src", "agent.ts"), agentContent);
   await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
+
+  // Write payments module when x402 is enabled
+  const paymentsContent = buildPaymentsModule(config);
+  if (paymentsContent) {
+    await writeFile(
+      path.join(targetDir, "src", "payments.ts"),
+      paymentsContent,
+    );
+  }
 
   // Write package.json
   const pkgTemplate = await readSharedTemplate("package.json.template");

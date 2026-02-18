@@ -380,38 +380,33 @@ export const newCommand: SlashCommand = {
           );
         }
         if (config.x402) {
-          const networkPrefixMap: Record<
-            string,
-            { prefix: string; facilitator: string }
-          > = {
-            "eip155:84532": {
-              prefix: "X402_BASE_SEPOLIA",
-              facilitator: "https://x402.org/facilitator",
-            },
-            "eip155:8453": {
-              prefix: "X402_BASE",
-              facilitator: "https://facilitator.payai.network",
-            },
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
-              prefix: "X402_SOL_DEVNET",
-              facilitator: "https://x402.org/facilitator",
-            },
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
-              prefix: "X402_SOL",
-              facilitator: "https://facilitator.payai.network",
-            },
+          const networkPrefixMap: Record<string, string> = {
+            "eip155:84532": "X402_BASE_SEPOLIA",
+            "eip155:8453": "X402_BASE",
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "X402_SOL_DEVNET",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "X402_SOL",
           };
+          const mainnetIds = new Set([
+            "eip155:8453",
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          ]);
+          const hasMainnet = config.x402.accepts.some((a) =>
+            mainnetIds.has(a.network),
+          );
+          const facilitatorUrl = hasMainnet
+            ? "https://facilitator.payai.network"
+            : "https://x402.org/facilitator";
+          envLines.push(`X402_FACILITATOR_URL=${facilitatorUrl}`);
           for (const a of config.x402.accepts) {
-            const entry = networkPrefixMap[a.network] || {
-              prefix: a.network,
-              facilitator: "https://x402.org/facilitator",
-            };
+            const prefix = networkPrefixMap[a.network] || a.network;
             envLines.push(
-              `${entry.prefix}_PAY_TO=${a.payTo}`,
-              `${entry.prefix}_PRICE=${a.price}`,
-              `${entry.prefix}_NETWORK=${a.network}`,
-              `${entry.prefix}_FACILITATOR_URL=${entry.facilitator}`,
+              `${prefix}_PAY_TO=${a.payTo}`,
+              `${prefix}_PRICE=${a.price}`,
+              `${prefix}_NETWORK=${a.network}`,
             );
+          }
+          if (hasMainnet) {
+            envLines.push("# PAYAI_API_KEY_ID=", "# PAYAI_API_KEY_SECRET=");
           }
         }
         envLines.push("");
