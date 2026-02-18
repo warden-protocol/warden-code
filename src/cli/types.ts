@@ -36,8 +36,11 @@ export interface AgentConfig {
   };
   skills: AgentSkill[];
   x402?: {
-    price: string;
-    network: string;
+    accepts: Array<{
+      network: string;
+      payTo: string;
+      price: string;
+    }>;
   };
 }
 

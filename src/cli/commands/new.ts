@@ -197,10 +197,10 @@ export const newCommand: SlashCommand = {
 
       // x402 payment configuration
       let x402Config: AgentConfig["x402"];
-      let x402PayToAddress: string | undefined;
       console.log(
         chalk.dim(
-          "x402 lets your agent charge per request using USDC on Base.\n" +
+          "x402 lets your agent charge per request using USDC.\n" +
+            "Supports Base (EVM) and Solana networks.\n" +
             "Clients pay automatically via the x402 protocol (HTTP 402).",
         ),
       );
@@ -211,51 +211,92 @@ export const newCommand: SlashCommand = {
       });
 
       if (enableX402) {
-        x402PayToAddress = await input({
-          message: "Wallet address to receive payments (0x...):",
-          validate: (v) =>
-            /^0x[a-fA-F0-9]{40}$/.test(v.trim()) ||
-            "Enter a valid Ethereum address (0x followed by 40 hex characters)",
-          theme: promptTheme,
-        });
+        const x402Accepts: Array<{
+          network: string;
+          payTo: string;
+          price: string;
+        }> = [];
+        let addingNetworks = true;
 
-        const x402Price = await input({
-          message: "Price per request (USDC):",
-          default: "0.01",
-          theme: promptTheme,
-        });
+        while (addingNetworks) {
+          const network = await select({
+            message: "Payment network:",
+            choices: [
+              {
+                value: "eip155:84532",
+                name: "Base Sepolia (testnet)",
+                description:
+                  "Free test USDC, uses the default x402.org facilitator",
+              },
+              {
+                value: "eip155:8453",
+                name: "Base (mainnet)",
+                description: "Real USDC; uses the PayAI facilitator",
+              },
+              {
+                value: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+                name: "Solana Devnet",
+                description:
+                  "Free test USDC, uses the default x402.org facilitator",
+              },
+              {
+                value: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                name: "Solana Mainnet",
+                description: "Real USDC; uses the PayAI facilitator",
+              },
+            ],
+            theme: promptTheme,
+          });
 
-        const x402Network = await select({
-          message: "Payment network:",
-          choices: [
-            {
-              value: "eip155:84532",
-              name: "Base Sepolia (testnet)",
-              description:
-                "Free test USDC, uses the default x402.org facilitator",
+          const isSolana = network.startsWith("solana:");
+          const payTo = await input({
+            message: isSolana
+              ? "Solana wallet address to receive payments:"
+              : "EVM wallet address to receive payments (0x...):",
+            validate: (v) => {
+              const trimmed = v.trim();
+              if (isSolana) {
+                return (
+                  /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed) ||
+                  "Enter a valid Solana address (base58, 32-44 characters)"
+                );
+              }
+              return (
+                /^0x[a-fA-F0-9]{40}$/.test(trimmed) ||
+                "Enter a valid Ethereum address (0x followed by 40 hex characters)"
+              );
             },
-            {
-              value: "eip155:8453",
-              name: "Base (mainnet)",
-              description:
-                "Real USDC payments; requires Coinbase CDP facilitator and API keys",
-            },
-          ],
-          theme: promptTheme,
-        });
+            theme: promptTheme,
+          });
 
-        if (x402Network === "eip155:8453") {
-          console.log(
-            chalk.dim(
-              "\nBase mainnet requires the Coinbase CDP facilitator.\n" +
-                "Set X402_FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402 in .env\n" +
-                "and configure CDP_API_KEY_ID / CDP_API_KEY_SECRET.\n" +
-                "See: https://docs.cdp.coinbase.com/x402/quickstart-for-sellers\n",
-            ),
-          );
+          const price = await input({
+            message: "Price per request (USDC):",
+            default: "0.01",
+            theme: promptTheme,
+          });
+
+          const isMainnet =
+            network === "eip155:8453" ||
+            network === "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+          if (isMainnet) {
+            console.log(
+              chalk.dim(
+                "\nMainnet uses the PayAI facilitator (configured automatically).\n" +
+                  "See: https://payai.network\n",
+              ),
+            );
+          }
+
+          x402Accepts.push({ network, payTo: payTo.trim(), price });
+
+          addingNetworks = await confirm({
+            message: "Add another payment network?",
+            default: false,
+            theme: promptTheme,
+          });
         }
 
-        x402Config = { price: x402Price, network: x402Network };
+        x402Config = { accepts: x402Accepts };
       }
 
       // Build config
@@ -296,9 +337,18 @@ export const newCommand: SlashCommand = {
       console.log(
         `  Skills:       ${config.skills.length > 0 ? chalk.rgb(199, 255, 142)(config.skills.map((s) => s.name).join(", ")) : chalk.dim("None")}`,
       );
-      console.log(
-        `  x402:         ${config.x402 ? chalk.rgb(199, 255, 142)(`$${config.x402.price} on ${config.x402.network}`) : chalk.dim("Disabled")}`,
-      );
+      if (config.x402) {
+        console.log(
+          `  x402:         ${chalk.rgb(199, 255, 142)(`${config.x402.accepts.length} network(s)`)}`,
+        );
+        for (const a of config.x402.accepts) {
+          console.log(
+            `                ${chalk.dim(`${a.network}: ${a.price} USDC`)}`,
+          );
+        }
+      } else {
+        console.log(`  x402:         ${chalk.dim("Disabled")}`);
+      }
       console.log(chalk.dim("─".repeat(40)));
       console.log();
 
@@ -329,13 +379,40 @@ export const newCommand: SlashCommand = {
             "OPENAI_MODEL=gpt-4o-mini",
           );
         }
-        if (config.x402 && x402PayToAddress) {
-          envLines.push(
-            `X402_PAY_TO_ADDRESS=${x402PayToAddress}`,
-            `X402_PRICE=${config.x402.price}`,
-            `X402_NETWORK=${config.x402.network}`,
-            "X402_FACILITATOR_URL=https://x402.org/facilitator",
-          );
+        if (config.x402) {
+          const networkPrefixMap: Record<
+            string,
+            { prefix: string; facilitator: string }
+          > = {
+            "eip155:84532": {
+              prefix: "X402_BASE_SEPOLIA",
+              facilitator: "https://x402.org/facilitator",
+            },
+            "eip155:8453": {
+              prefix: "X402_BASE",
+              facilitator: "https://facilitator.payai.network",
+            },
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
+              prefix: "X402_SOL_DEVNET",
+              facilitator: "https://x402.org/facilitator",
+            },
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
+              prefix: "X402_SOL",
+              facilitator: "https://facilitator.payai.network",
+            },
+          };
+          for (const a of config.x402.accepts) {
+            const entry = networkPrefixMap[a.network] || {
+              prefix: a.network,
+              facilitator: "https://x402.org/facilitator",
+            };
+            envLines.push(
+              `${entry.prefix}_PAY_TO=${a.payTo}`,
+              `${entry.prefix}_PRICE=${a.price}`,
+              `${entry.prefix}_NETWORK=${a.network}`,
+              `${entry.prefix}_FACILITATOR_URL=${entry.facilitator}`,
+            );
+          }
         }
         envLines.push("");
         await writeFile(path.join(targetDir, ".env"), envLines.join("\n"));
