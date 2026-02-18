@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.3.0 (2026-02-18)
+
+### Features
+
+- Multi-network x402 payment support: agents can accept payments on Base Sepolia, Base mainnet, Solana Devnet, and Solana mainnet
+- Per-network facilitator URLs: testnet networks default to x402.org, mainnet networks default to PayAI facilitator
+- Payment configuration via per-network environment variables (`X402_<PREFIX>_PAY_TO`, `_PRICE`, `_NETWORK`, `_FACILITATOR_URL`)
+- Payments auto-disable when no pay-to address is configured (server falls back to standard listen)
+- Wizard supports adding multiple payment networks with per-network wallet address validation (EVM and Solana)
+- `.env.example` includes all network sections with disabled networks commented out for easy enabling
+- Facilitator URL validation at startup: all enabled networks must use the same facilitator
+
+### Improvements
+
+- Payment details no longer hardcoded in generated `server.ts`; read from environment variables at runtime
+- `AgentConfig.x402` type updated to support multiple networks via `accepts` array
+
 ## 1.2.1 (2026-02-17)
 
 ### Fixes
