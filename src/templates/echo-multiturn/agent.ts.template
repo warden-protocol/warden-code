@@ -18,6 +18,8 @@ export async function* handler(context: TaskContext): AsyncGenerator<TaskYieldUp
   }
 
   // TODO: Implement your agent logic here
+  yield { state: "working" };
+
   yield {
     state: "completed",
     message: {
