@@ -93,28 +93,55 @@ Agents can optionally charge per request using [x402](https://x402.org), Coinbas
 ### How it works
 
 1. During `/new`, choose "Enable x402 payments" when prompted
-2. Provide your wallet address (the address that receives payments)
-3. Set a price per request (default: `$0.01`)
-4. Choose a network: **Base Sepolia** (testnet) or **Base** (mainnet)
+2. Select a payment network (Base or Solana, testnet or mainnet)
+3. Provide the wallet address for that network
+4. Set a price per request (default: `0.01`)
+5. Optionally add more networks (e.g., Base Sepolia + Solana Devnet)
 
-The wizard generates a `server.ts` that uses Express with x402 payment middleware in front of the standard A2A and LangGraph handlers. When x402 is not enabled, the generated code uses the standard `AgentServer.listen()` with no Express dependency.
+The wizard generates a `.env` file with per-network payment variables. At runtime, the server reads these variables and conditionally enables the Express + x402 middleware layer. When no `PAY_TO` variables are set, the agent falls back to the standard `AgentServer.listen()` with no Express dependency.
 
 ### Configuration
 
-When x402 is enabled, these environment variables are added to `.env`:
+Each payment network uses three environment variables with a shared prefix:
+
+| Prefix | Network |
+|--------|---------|
+| `X402_BASE_SEPOLIA` | Base Sepolia (testnet) |
+| `X402_BASE` | Base (mainnet) |
+| `X402_SOL_DEVNET` | Solana Devnet |
+| `X402_SOL` | Solana Mainnet |
+
+For each prefix, three variables control the payment config:
 
 | Variable | Description |
 |----------|-------------|
-| `X402_PAY_TO_ADDRESS` | Your wallet address to receive USDC payments |
-| `X402_PRICE` | Price per request in USD (e.g. `$0.01`) |
-| `X402_NETWORK` | Blockchain network (`eip155:84532` for Base Sepolia, `eip155:8453` for Base) |
-| `X402_FACILITATOR_URL` | Payment facilitator URL (default: `https://x402.org/facilitator`) |
+| `X402_<PREFIX>_PAY_TO` | Wallet address to receive payments (set to enable, remove to disable) |
+| `X402_<PREFIX>_PRICE` | Price per request in USDC (default: `0.01`) |
+| `X402_<PREFIX>_NETWORK` | Network identifier (pre-filled) |
+| `X402_<PREFIX>_FACILITATOR_URL` | Payment facilitator endpoint (testnet: `x402.org`, mainnet: `facilitator.payai.network`) |
+
+Example `.env` section for Base Sepolia:
+
+```bash
+# Base Sepolia (testnet)
+X402_BASE_SEPOLIA_PAY_TO=0xYourAddress
+X402_BASE_SEPOLIA_PRICE=0.01
+X402_BASE_SEPOLIA_NETWORK=eip155:84532
+X402_BASE_SEPOLIA_FACILITATOR_URL=https://x402.org/facilitator
+```
+
+To disable a network, remove its `PAY_TO` value. To disable payments entirely, remove all `PAY_TO` values. All available networks are listed in `.env.example` (active ones uncommented, others commented out for easy enabling).
 
 ### Networks
 
-**Base Sepolia (testnet)** is recommended for development. It works with the default facilitator at `https://x402.org/facilitator` and uses testnet USDC (no real funds required).
+| Network | ID | Pay-to format | Facilitator |
+|---------|-----|---------------|-------------|
+| Base Sepolia (testnet) | `eip155:84532` | `0x` + 40 hex chars | `x402.org` (default) |
+| Base (mainnet) | `eip155:8453` | `0x` + 40 hex chars | PayAI (`facilitator.payai.network`) |
+| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | Base58, 32-44 chars | `x402.org` (default) |
+| Solana Mainnet | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | Base58, 32-44 chars | PayAI (`facilitator.payai.network`) |
 
-**Base (mainnet)** requires a Coinbase CDP facilitator with API keys. The default facilitator does not support mainnet.
+Testnet networks are recommended for development. They work with the default x402.org facilitator and use testnet USDC (no real funds required). Mainnet networks use the PayAI facilitator.
 
 ### Generated dependencies
 
@@ -123,7 +150,8 @@ When x402 is enabled, the following packages are added to the generated agent:
 - `express` and `@types/express`
 - `@x402/express` (payment middleware)
 - `@x402/core` (protocol types and facilitator client)
-- `@x402/evm` (EVM payment scheme verification)
+- `@x402/evm` (EVM payment scheme verification, included when Base networks are selected)
+- `@x402/svm` (Solana payment scheme verification, included when Solana networks are selected)
 
 ## Build Mode
 
