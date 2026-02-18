@@ -251,7 +251,15 @@ describe("processTemplate", () => {
     it("should replace {{x402_imports}} with express and x402 imports when x402 is configured", () => {
       const content = "{{x402_imports}}";
       const config = createMockConfig({
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
@@ -276,7 +284,15 @@ describe("processTemplate", () => {
     it("should replace {{x402_listen}} with Express wrapper when x402 is configured", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig({
-        x402: { price: "$0.05", network: "eip155:8453" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:8453",
+              payTo: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+              price: "0.05",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
@@ -284,8 +300,15 @@ describe("processTemplate", () => {
       expect(result).toContain("paymentMiddleware");
       expect(result).toContain("x402ResourceServer");
       expect(result).toContain("app.listen(PORT");
-      expect(result).toContain("$0.05");
-      expect(result).toContain("eip155:8453");
+      // Runtime env var parsing for payment config
+      expect(result).toContain("x402Networks");
+      expect(result).toContain("_PAY_TO");
+      expect(result).toContain("x402Accepts.length > 0");
+      // Prices and addresses should NOT be hardcoded in server code
+      expect(result).not.toContain("0.05");
+      expect(result).not.toContain(
+        "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+      );
     });
 
     it("should replace {{x402_dependencies}} with empty string when x402 is not configured", () => {
@@ -300,7 +323,15 @@ describe("processTemplate", () => {
     it("should replace {{x402_dependencies}} with express and x402 packages when configured", () => {
       const content = "{{x402_dependencies}}";
       const config = createMockConfig({
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
@@ -314,7 +345,15 @@ describe("processTemplate", () => {
     it("should replace {{x402_dev_dependencies}} with @types/express when configured", () => {
       const content = "{{x402_dev_dependencies}}";
       const config = createMockConfig({
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
@@ -334,15 +373,35 @@ describe("processTemplate", () => {
     it("should replace {{x402_env_config}} with env vars when configured", () => {
       const content = "{{x402_env_config}}";
       const config = createMockConfig({
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
 
-      expect(result).toContain("X402_PAY_TO_ADDRESS");
-      expect(result).toContain("X402_PRICE=$0.01");
-      expect(result).toContain("X402_NETWORK=eip155:84532");
-      expect(result).toContain("X402_FACILITATOR_URL");
+      // Active network section
+      expect(result).toContain(
+        "X402_BASE_SEPOLIA_PAY_TO=0x1234567890abcdef1234567890abcdef12345678",
+      );
+      expect(result).toContain("X402_BASE_SEPOLIA_PRICE=0.01");
+      expect(result).toContain("X402_BASE_SEPOLIA_NETWORK=eip155:84532");
+      // Other networks are commented out
+      expect(result).toContain("# X402_BASE_PAY_TO=");
+      expect(result).toContain("# X402_SOL_DEVNET_PAY_TO=");
+      expect(result).toContain("# X402_SOL_PAY_TO=");
+      expect(result).toContain(
+        "X402_BASE_SEPOLIA_FACILITATOR_URL=https://x402.org/facilitator",
+      );
+      expect(result).toContain(
+        "# X402_BASE_FACILITATOR_URL=https://facilitator.payai.network",
+      );
     });
 
     it("should replace {{x402_env_setup}} with empty string when x402 is not configured", () => {
@@ -357,21 +416,38 @@ describe("processTemplate", () => {
     it("should replace {{x402_env_setup}} with README section when configured", () => {
       const content = "{{x402_env_setup}}";
       const config = createMockConfig({
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
 
       expect(result).toContain("x402");
-      expect(result).toContain("X402_PAY_TO_ADDRESS");
+      expect(result).toContain("X402_<NETWORK>_PAY_TO");
       expect(result).toContain("USDC");
+      expect(result).toContain("remove all");
     });
 
     it("should resolve {{name}} inside {{x402_listen}} content", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig({
         name: "Payment Agent",
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
@@ -384,13 +460,168 @@ describe("processTemplate", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig({
         description: "A paid agent",
-        x402: { price: "$0.01", network: "eip155:84532" },
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+          ],
+        },
       });
 
       const result = processTemplate(content, config);
 
       expect(result).toContain("A paid agent");
       expect(result).not.toContain("{{description}}");
+    });
+
+    it("should include SVM import for Solana-only config", () => {
+      const content = "{{x402_imports}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "So11111111111111111111111111111111111111112",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("@x402/svm/exact/server");
+      expect(result).not.toContain("@x402/evm/exact/server");
+    });
+
+    it("should include both EVM and SVM imports for mixed config", () => {
+      const content = "{{x402_imports}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "So11111111111111111111111111111111111111112",
+              price: "0.02",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("@x402/evm/exact/server");
+      expect(result).toContain("@x402/svm/exact/server");
+    });
+
+    it("should include all accepts entries in {{x402_listen}} for mixed config", () => {
+      const content = "{{x402_listen}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0xaabbccddee11223344556677889900aabbccddee",
+              price: "0.01",
+            },
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+              price: "0.05",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      // Pay-to addresses should NOT be hardcoded in the listen block
+      // (network IDs appear in the x402Networks lookup table as defaults, which is fine)
+      expect(result).not.toContain(
+        "0xaabbccddee11223344556677889900aabbccddee",
+      );
+      expect(result).not.toContain(
+        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      );
+      // Runtime env var parsing
+      expect(result).toContain("x402Networks");
+      expect(result).toContain("_PAY_TO");
+      // Both scheme registrations are included conditionally
+      expect(result).toContain("registerExactEvmScheme");
+      expect(result).toContain("registerExactSvmScheme");
+    });
+
+    it("should include @x402/svm dependency for Solana config", () => {
+      const content = "{{x402_dependencies}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "So11111111111111111111111111111111111111112",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain('"@x402/svm"');
+      expect(result).not.toContain('"@x402/evm"');
+    });
+
+    it("should include both @x402/evm and @x402/svm for mixed config", () => {
+      const content = "{{x402_dependencies}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0x1234567890abcdef1234567890abcdef12345678",
+              price: "0.01",
+            },
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "So11111111111111111111111111111111111111112",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain('"@x402/evm"');
+      expect(result).toContain('"@x402/svm"');
+    });
+
+    it("should register only SVM scheme for Solana-only config", () => {
+      const content = "{{x402_listen}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "So11111111111111111111111111111111111111112",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("registerExactSvmScheme");
+      expect(result).not.toContain("registerExactEvmScheme");
     });
   });
 
@@ -459,7 +690,15 @@ describe("template integration (actual template files)", () => {
     packageName: "paid-agent",
     description: "A premium agent",
     template: "openai",
-    x402: { price: "$0.05", network: "eip155:84532" },
+    x402: {
+      accepts: [
+        {
+          network: "eip155:84532",
+          payTo: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+          price: "0.05",
+        },
+      ],
+    },
   });
 
   describe("server.ts.template", () => {
@@ -485,10 +724,12 @@ describe("template integration (actual template files)", () => {
       expect(result).toContain("paymentMiddleware");
       expect(result).toContain("x402ResourceServer");
       expect(result).toContain("app.listen(PORT");
-      expect(result).toContain("$0.05");
-      expect(result).toContain("eip155:84532");
-      // Runtime conditional: Express branch + server.listen fallback
-      expect(result).toContain("if (process.env.X402_PAY_TO_ADDRESS)");
+      // Payment config is read from env vars at runtime, not hardcoded
+      expect(result).toContain("x402Networks");
+      expect(result).toContain("_PAY_TO");
+      expect(result).toContain("x402Accepts.length > 0");
+      expect(result).not.toContain('"0.05"');
+      // Fallback when no PAY_TO is set
       expect(result).toContain("server.listen(PORT)");
       expect(result).not.toContain("{{");
     });
@@ -563,17 +804,20 @@ describe("template integration (actual template files)", () => {
     it("should include x402 env vars when enabled", () => {
       const result = processTemplate(template, x402Config);
 
-      expect(result).toContain("X402_PAY_TO_ADDRESS");
-      expect(result).toContain("X402_PRICE=$0.05");
-      expect(result).toContain("X402_NETWORK=eip155:84532");
-      expect(result).toContain("X402_FACILITATOR_URL");
+      expect(result).toContain("X402_BASE_SEPOLIA_PAY_TO=");
+      expect(result).toContain("X402_BASE_SEPOLIA_NETWORK=eip155:84532");
+      expect(result).toContain(
+        "X402_BASE_SEPOLIA_FACILITATOR_URL=https://x402.org/facilitator",
+      );
+      // All networks should be present (active or commented)
+      expect(result).toContain("# X402_SOL_DEVNET_PAY_TO=");
     });
 
     it("should include model config alongside x402", () => {
       const result = processTemplate(template, x402Config);
 
       expect(result).toContain("OPENAI_API_KEY");
-      expect(result).toContain("X402_PRICE");
+      expect(result).toContain("X402_BASE_SEPOLIA_PAY_TO");
     });
   });
 
@@ -586,7 +830,7 @@ describe("template integration (actual template files)", () => {
       expect(result).toContain("# Echo Bot");
       expect(result).toContain("Echoes back messages");
       expect(result).not.toContain("x402");
-      expect(result).not.toContain("X402_PAY_TO_ADDRESS");
+      expect(result).not.toContain("X402_ENABLED");
       expect(result).not.toContain("{{");
     });
 
@@ -595,7 +839,7 @@ describe("template integration (actual template files)", () => {
 
       expect(result).toContain("# Paid Agent");
       expect(result).toContain("x402");
-      expect(result).toContain("X402_PAY_TO_ADDRESS");
+      expect(result).toContain("X402_<NETWORK>_PAY_TO");
       expect(result).toContain("USDC");
       expect(result).not.toContain("{{");
     });
