@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "agent": "node dist/server.js"
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@wardenprotocol/agent-kit": "^0.5.0",
