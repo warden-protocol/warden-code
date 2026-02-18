@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.4.0 (2026-02-18)
+
+### Features
+
+- Extract x402 payment logic into separate `payments.ts` module: generated agents get a dedicated file for all payment setup, keeping `server.ts` focused on server lifecycle
+- PayAI facilitator authentication: generated agents use `@payai/facilitator` for automatic JWT-based auth when the facilitator URL points to `payai.network`
+- Single `X402_FACILITATOR_URL` env var replaces per-network facilitator URLs (the x402 middleware only supports one facilitator)
+
+### Fixes
+
+- Echo template A2A state machine: added missing `working` state transition before `completed`, fixing "Invalid task state transition" warnings from AgentServer
+
+### Improvements
+
+- Generated `.env.example` uses empty placeholder values instead of leaking actual wallet addresses from the wizard
+- PayAI API credential hints only shown for mainnet configurations (testnet-only agents skip them)
+- Consolidated `buildPaymentsModule()` as an independently testable function for generating the payments module
+
 ## 1.3.0 (2026-02-18)
 
 ### Features

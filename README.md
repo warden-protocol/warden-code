@@ -67,7 +67,8 @@ All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes bo
 my-agent/
 ├── src/
 │   ├── agent.ts      # Your agent logic (handler function)
-│   └── server.ts     # Server setup and configuration
+│   ├── server.ts     # Server setup and configuration
+│   └── payments.ts   # x402 payment setup (only when payments enabled)
 ├── agent-card.json   # Agent identity, capabilities, and skills (A2A protocol)
 ├── package.json
 ├── tsconfig.json
@@ -111,37 +112,49 @@ Each payment network uses three environment variables with a shared prefix:
 | `X402_SOL_DEVNET` | Solana Devnet |
 | `X402_SOL` | Solana Mainnet |
 
-For each prefix, three variables control the payment config:
+A single facilitator URL is shared across all networks:
+
+| Variable | Description |
+|----------|-------------|
+| `X402_FACILITATOR_URL` | Payment facilitator endpoint (testnet default: `x402.org`, mainnet default: `facilitator.payai.network`) |
+
+For each prefix, three variables control the network config:
 
 | Variable | Description |
 |----------|-------------|
 | `X402_<PREFIX>_PAY_TO` | Wallet address to receive payments (set to enable, remove to disable) |
 | `X402_<PREFIX>_PRICE` | Price per request in USDC (default: `0.01`) |
 | `X402_<PREFIX>_NETWORK` | Network identifier (pre-filled) |
-| `X402_<PREFIX>_FACILITATOR_URL` | Payment facilitator endpoint (testnet: `x402.org`, mainnet: `facilitator.payai.network`) |
 
 Example `.env` section for Base Sepolia:
 
 ```bash
+X402_FACILITATOR_URL=https://x402.org/facilitator
+
 # Base Sepolia (testnet)
 X402_BASE_SEPOLIA_PAY_TO=0xYourAddress
 X402_BASE_SEPOLIA_PRICE=0.01
 X402_BASE_SEPOLIA_NETWORK=eip155:84532
-X402_BASE_SEPOLIA_FACILITATOR_URL=https://x402.org/facilitator
 ```
 
 To disable a network, remove its `PAY_TO` value. To disable payments entirely, remove all `PAY_TO` values. All available networks are listed in `.env.example` (active ones uncommented, others commented out for easy enabling).
 
 ### Networks
 
-| Network | ID | Pay-to format | Facilitator |
-|---------|-----|---------------|-------------|
-| Base Sepolia (testnet) | `eip155:84532` | `0x` + 40 hex chars | `x402.org` (default) |
-| Base (mainnet) | `eip155:8453` | `0x` + 40 hex chars | PayAI (`facilitator.payai.network`) |
-| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | Base58, 32-44 chars | `x402.org` (default) |
-| Solana Mainnet | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | Base58, 32-44 chars | PayAI (`facilitator.payai.network`) |
+| Network | ID | Pay-to format |
+|---------|-----|---------------|
+| Base Sepolia (testnet) | `eip155:84532` | `0x` + 40 hex chars |
+| Base (mainnet) | `eip155:8453` | `0x` + 40 hex chars |
+| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | Base58, 32-44 chars |
+| Solana Mainnet | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | Base58, 32-44 chars |
 
-Testnet networks are recommended for development. They work with the default x402.org facilitator and use testnet USDC (no real funds required). Mainnet networks use the PayAI facilitator.
+Testnet networks are recommended for development. They work with the default x402.org facilitator and use testnet USDC (no real funds required).
+
+### Facilitator
+
+Set `X402_FACILITATOR_URL` in `.env` to your facilitator of choice. The wizard defaults to `https://x402.org/facilitator` for testnet networks and `https://facilitator.payai.network` for mainnet.
+
+The [PayAI facilitator](https://facilitator.payai.network) offers 1,000 free settlements per month. For higher volumes, create a merchant account at [merchant.payai.network](https://merchant.payai.network) and set `PAYAI_API_KEY_ID` and `PAYAI_API_KEY_SECRET` in your `.env`. Authentication is handled automatically via the `@payai/facilitator` package when the facilitator URL contains `payai.network`.
 
 ### Generated dependencies
 
@@ -150,6 +163,7 @@ When x402 is enabled, the following packages are added to the generated agent:
 - `express` and `@types/express`
 - `@x402/express` (payment middleware)
 - `@x402/core` (protocol types and facilitator client)
+- `@payai/facilitator` (facilitator authentication)
 - `@x402/evm` (EVM payment scheme verification, included when Base networks are selected)
 - `@x402/svm` (Solana payment scheme verification, included when Solana networks are selected)
 
