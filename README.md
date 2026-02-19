@@ -96,7 +96,7 @@ Your agent will be available at `http://localhost:3000`.
 
 ### Front-end
 
-Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, and provider info. Example prompts from skills are shown as clickable conversation starters. If the agent card has an `image` field, it is used as the page favicon.
+Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, and provider info. Example prompts from skills are shown as clickable conversation starters. If the agent card has an `image` field, it is used as the page favicon. Agent responses are rendered as GitHub-flavored markdown (headings, code blocks, lists, tables, links).
 
 When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows wallet connect buttons for the configured networks (MetaMask for EVM, Phantom for Solana). Payment transaction hashes in responses link to the appropriate block explorer.
 
