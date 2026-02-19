@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.5.0 (2026-02-19)
+
+### Features
+
+- Auto-tag agent skills with OASF (Open Agentic Schema Framework) categories at scaffold time using static keyword matching against skill name and description
+- 77 OASF categories across 11 domains covering natural language, coding, retrieval, security, data operations, agent orchestration, evaluation, infrastructure, governance, integration, and strategic reasoning
+- Tags appear as `"oasf:<path>"` strings in the generated `agent-card.json` (e.g., `"oasf:natural_language/generation/dialogue_generation"`)
+
 ## 1.4.1 (2026-02-18)
 
 ### Fixes
