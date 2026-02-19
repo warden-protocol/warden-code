@@ -789,6 +789,18 @@
 
             // Current EVM chain ID (decimal), kept in sync with MetaMask
             let evmChainId = null;
+            // Cached viem module so we can recreate the wallet client on chain change
+            let viemModule = null;
+
+            function rebuildEvmWalletClient(chainId) {
+                if (!viemModule || !evmWalletClient) return;
+                evmChainId = chainId;
+                evmWalletClient = viemModule.createWalletClient({
+                    account: evmWalletClient.account.address,
+                    chain: { id: chainId },
+                    transport: viemModule.custom(window.ethereum),
+                });
+            }
 
             async function connectEvm() {
                 const ethereum = window.ethereum;
@@ -813,11 +825,15 @@
                     evmChainId = parseInt(hexChainId, 16);
 
                     // Dynamic import viem only when needed
-                    const viem = await import("https://esm.sh/viem@2?bundle");
-                    evmWalletClient = viem.createWalletClient({
+                    if (!viemModule) {
+                        viemModule = await import(
+                            "https://esm.sh/viem@2?bundle"
+                        );
+                    }
+                    evmWalletClient = viemModule.createWalletClient({
                         account: address,
                         chain: { id: evmChainId },
-                        transport: viem.custom(ethereum),
+                        transport: viemModule.custom(ethereum),
                     });
 
                     const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -929,14 +945,29 @@
                 if (evmWalletClient) {
                     const signer = {
                         address: evmWalletClient.account.address,
-                        signTypedData: async (message) =>
-                            evmWalletClient.signTypedData({
+                        signTypedData: async (message) => {
+                            // The domain contains the chain the payment targets.
+                            // If it differs from the wallet client's chain, switch
+                            // MetaMask and rebuild the client before signing.
+                            const requiredChain = Number(
+                                message.domain?.chainId,
+                            );
+                            if (requiredChain && requiredChain !== evmChainId) {
+                                const hexChain = `0x${requiredChain.toString(16)}`;
+                                await window.ethereum.request({
+                                    method: "wallet_switchEthereumChain",
+                                    params: [{ chainId: hexChain }],
+                                });
+                                rebuildEvmWalletClient(requiredChain);
+                            }
+                            return evmWalletClient.signTypedData({
                                 account: evmWalletClient.account,
                                 domain: message.domain,
                                 types: message.types,
                                 primaryType: message.primaryType,
                                 message: message.message,
-                            }),
+                            });
+                        },
                     };
                     registerExactEvmScheme(client, { signer });
                 }
@@ -1255,13 +1286,9 @@
                 });
                 window.ethereum.on("chainChanged", (hexId) => {
                     if (!evmWalletClient) return;
-                    evmChainId = parseInt(hexId, 16);
-                    if (evmWalletClient) {
-                        evmWalletClient = Object.assign(evmWalletClient, {
-                            chain: { id: evmChainId },
-                        });
-                    }
-                    appendMessage(`Switched to chain ${evmChainId}.`, "system");
+                    const newChainId = parseInt(hexId, 16);
+                    rebuildEvmWalletClient(newChainId);
+                    appendMessage(`Switched to chain ${newChainId}.`, "system");
                 });
             }
 
