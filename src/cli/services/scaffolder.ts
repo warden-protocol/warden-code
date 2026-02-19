@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentConfig } from "../types.js";
+import { tagSkill } from "./oasf-tagger.js";
 import { writeFile } from "./project.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,16 +28,23 @@ async function readSharedTemplate(filename: string): Promise<string> {
 
 export function processTemplate(content: string, config: AgentConfig): string {
   const skillsStr = config.skills
-    .map(
-      (s) =>
-        `{\n        id: "${s.id}",\n        name: "${s.name}",\n        description: "${s.description}",\n        tags: [],\n      }`,
-    )
+    .map((s) => {
+      const tags = tagSkill(s.name, s.description);
+      const tagsLiteral =
+        tags.length > 0 ? `[${tags.map((t) => `"${t}"`).join(", ")}]` : "[]";
+      return `{\n        id: "${s.id}",\n        name: "${s.name}",\n        description: "${s.description}",\n        tags: ${tagsLiteral},\n      }`;
+    })
     .join(",\n      ");
 
   const skillsJsonStr = config.skills
     .map((s) =>
       JSON.stringify(
-        { id: s.id, name: s.name, description: s.description, tags: [] },
+        {
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          tags: tagSkill(s.name, s.description),
+        },
         null,
         4,
       ),
