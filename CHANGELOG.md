@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 1.6.0 (2026-02-19)
 
 ### Features
 
@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - ERC-8004 agent registration: scaffolds `agent-registration.json` (in `public/.well-known/` and `public/` root) with compliant structure including x402 support and network metadata
 - Agent card moved to `public/.well-known/agent-card.json` with a static `url` field; startup logs a warning if it doesn't match the server's `AGENT_URL`
 - x402 payment UX: eager wallet loading on page load, MetaMask chain detection via `eth_chainId`, payment transaction hashes link to block explorers, wallet buttons conditionally shown based on configured networks (EVM-only agents hide Phantom, Solana-only agents hide MetaMask)
+
+### Fixes
+
+- Rebuild viem wallet client on MetaMask chain change instead of mutating via `Object.assign`, fixing "chainId must match active chainId" errors
+- Auto-switch MetaMask to the required chain before signing x402 payments, resolving per-site chain permission mismatches
 
 ### Improvements
 
