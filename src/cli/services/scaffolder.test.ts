@@ -334,13 +334,16 @@ describe("processTemplate", () => {
       expect(result).not.toContain('import express from "express"');
     });
 
-    it("should replace {{x402_listen}} with standard server.listen when x402 is not configured", () => {
+    it("should replace {{x402_listen}} with createServer when x402 is not configured", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
-      expect(result).toContain("server.listen(PORT)");
+      expect(result).toContain("createServer");
+      expect(result).toContain("httpServer.listen(PORT");
+      expect(result).toContain("serveStatic");
+      expect(result).not.toContain("server.listen(PORT)");
       expect(result).not.toContain("express");
       expect(result).not.toContain("paymentMiddleware");
     });
@@ -375,8 +378,9 @@ describe("processTemplate", () => {
       expect(result).not.toContain("x402ResourceServer");
       expect(result).not.toContain("x402Networks");
       expect(result).not.toContain("createFacilitatorConfig");
-      // Fallback when no networks enabled
-      expect(result).toContain("server.listen(PORT)");
+      // Fallback when no networks enabled at runtime
+      expect(result).toContain("httpServer.listen(PORT");
+      expect(result).not.toContain("server.listen(PORT)");
       // Prices and addresses not hardcoded
       expect(result).not.toContain("0.05");
       expect(result).not.toContain(
@@ -433,6 +437,105 @@ describe("processTemplate", () => {
       const result = processTemplate(content, config);
 
       expect(result).toContain('"@types/express"');
+    });
+
+    it("should replace {{x402_support}} with false when x402 is not configured", () => {
+      const content = "{{x402_support}}";
+      const config = createMockConfig();
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("false");
+    });
+
+    it("should replace {{x402_support}} with true when x402 is configured", () => {
+      const content = "{{x402_support}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0xabc",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("true");
+    });
+
+    it("should replace {{x402_networks}} with empty array when x402 is not configured", () => {
+      const content = "{{x402_networks}}";
+      const config = createMockConfig();
+
+      const result = processTemplate(content, config);
+
+      expect(result).toBe("[]");
+    });
+
+    it("should replace {{x402_networks}} with evm only for EVM networks", () => {
+      const content = "{{x402_networks}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0xabc",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(JSON.parse(result)).toEqual(["evm"]);
+    });
+
+    it("should replace {{x402_networks}} with solana only for Solana networks", () => {
+      const content = "{{x402_networks}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "SomeSolAddress",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(JSON.parse(result)).toEqual(["solana"]);
+    });
+
+    it("should replace {{x402_networks}} with both evm and solana for mixed networks", () => {
+      const content = "{{x402_networks}}";
+      const config = createMockConfig({
+        x402: {
+          accepts: [
+            {
+              network: "eip155:84532",
+              payTo: "0xabc",
+              price: "0.01",
+            },
+            {
+              network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+              payTo: "SomeSolAddress",
+              price: "0.01",
+            },
+          ],
+        },
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(JSON.parse(result)).toEqual(["evm", "solana"]);
     });
 
     it("should replace {{x402_env_config}} with empty string when x402 is not configured", () => {
@@ -785,7 +888,12 @@ describe("template integration (actual template files)", () => {
 
       expect(result).toContain('import "dotenv/config"');
       expect(result).toContain("AgentServer");
-      expect(result).toContain("server.listen(PORT)");
+      expect(result).toContain("createServer");
+      expect(result).toContain("httpServer.listen(PORT");
+      expect(result).toContain("serveStatic");
+      expect(result).toContain("PUBLIC_DIR");
+      expect(result).toContain("MIME_TYPES");
+      expect(result).not.toContain("server.listen(PORT)");
       expect(result).not.toContain("{{");
       expect(result).not.toContain("express");
       expect(result).not.toContain("paymentMiddleware");
@@ -804,7 +912,8 @@ describe("template integration (actual template files)", () => {
       expect(result).not.toContain("x402ResourceServer");
       // Startup and fallback paths
       expect(result).toContain("app.listen(PORT");
-      expect(result).toContain("server.listen(PORT)");
+      expect(result).toContain("httpServer.listen(PORT");
+      expect(result).not.toContain("server.listen(PORT)");
       expect(result).not.toContain('"0.05"');
       expect(result).not.toContain("{{");
     });
@@ -1123,6 +1232,7 @@ describe("buildPaymentsModule", () => {
     expect(result).toContain("/threads");
     expect(result).toContain("a2aHandler");
     expect(result).toContain("langGraphHandler");
+    expect(result).toContain("express.static");
     expect(result).toContain("return app");
   });
 
