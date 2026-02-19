@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.7.1 (2026-02-19)
+
+### Features
+
+- Markdown rendering for agent responses: lazy-loads `marked` from CDN, progressively upgrades plain text to rendered GFM with headings, code blocks, lists, tables, and links
+- Payment amount shown in system message when agent has x402 pricing configured
+
 ## 1.7.0 (2026-02-19)
 
 ### Features
