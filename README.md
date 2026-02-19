@@ -96,9 +96,26 @@ Your agent will be available at `http://localhost:3000`.
 
 ### Front-end
 
-Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, skills, and provider info. Example prompts from skills are shown as clickable conversation starters.
+Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, and provider info. Example prompts from skills are shown as clickable conversation starters. If the agent card has an `image` field, it is used as the page favicon.
 
 When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows wallet connect buttons for the configured networks (MetaMask for EVM, Phantom for Solana). Payment transaction hashes in responses link to the appropriate block explorer.
+
+### Reputation
+
+When the agent's `agent-registration.json` has entries in `registrations[]`, the front-end enables ERC-8004 reputation features:
+
+- **Reputation display**: aggregated on-chain reputation (star rating, numeric score, review count) shown in the info bar, fetched from the ReputationRegistry across all registered chains
+- **Feedback submission**: each agent response shows a 5-star rating row; clicking a star submits `giveFeedback` to the ReputationRegistry on the cheapest available L2 (auto-switches MetaMask if needed)
+- **Self-rating prevention**: a pre-flight `isAuthorizedOrOwner` check prevents the MetaMask transaction popup when the agent owner tries to rate their own agent
+
+Reputation is purely front-end (no server changes). The `registrations[]` array in `agent-registration.json` drives everything. Fill it in after registering your agent on-chain via the [ERC-8004 contracts](https://github.com/erc-8004/erc-8004-contracts). Each entry has the format:
+
+```json
+{
+  "agentId": 853,
+  "agentRegistry": "eip155:84532:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+}
+```
 
 The `public/` directory is served as static files. Add any additional assets (icons, stylesheets, scripts) and they will be available at their corresponding URL paths.
 
