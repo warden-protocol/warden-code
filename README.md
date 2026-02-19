@@ -69,9 +69,14 @@ All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes bo
 my-agent/
 ├── src/
 │   ├── agent.ts      # Your agent logic (handler function)
-│   ├── server.ts     # Server setup and configuration
+│   ├── server.ts     # Server setup, static file serving, protocol routing
 │   └── payments.ts   # x402 payment setup (only when payments enabled)
-├── agent-card.json   # Agent identity, capabilities, and skills (A2A protocol)
+├── public/
+│   ├── index.html    # Chat front-end (auto-loads agent card, skills, x402 wallets)
+│   ├── agent-registration.json   # ERC-8004 registration metadata
+│   └── .well-known/
+│       ├── agent-card.json           # Agent identity, capabilities, skills (A2A)
+│       └── agent-registration.json   # ERC-8004 registration metadata
 ├── package.json
 ├── tsconfig.json
 ├── Dockerfile
@@ -88,6 +93,14 @@ npm start
 ```
 
 Your agent will be available at `http://localhost:3000`.
+
+### Front-end
+
+Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, skills, and provider info. Example prompts from skills are shown as clickable conversation starters.
+
+When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows wallet connect buttons for the configured networks (MetaMask for EVM, Phantom for Solana). Payment transaction hashes in responses link to the appropriate block explorer.
+
+The `public/` directory is served as static files. Add any additional assets (icons, stylesheets, scripts) and they will be available at their corresponding URL paths.
 
 ## x402 Payments
 

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Features
+
+- Bundled front-end for scaffolded agents: every new agent gets a `public/index.html` with a chat UI that loads the agent card, displays capabilities, skills, provider info, and example prompts as conversation starters
+- Static file serving from `public/`: custom HTTP server uses a `serveStatic` function with MIME type support; Express path uses `express.static`; any file in `public/` is automatically served
+- ERC-8004 agent registration: scaffolds `agent-registration.json` (in `public/.well-known/` and `public/` root) with compliant structure including x402 support and network metadata
+- Agent card moved to `public/.well-known/agent-card.json` with a static `url` field; startup logs a warning if it doesn't match the server's `AGENT_URL`
+- x402 payment UX: eager wallet loading on page load, MetaMask chain detection via `eth_chainId`, payment transaction hashes link to block explorers, wallet buttons conditionally shown based on configured networks (EVM-only agents hide Phantom, Solana-only agents hide MetaMask)
+
+### Improvements
+
+- Dockerfile copies `public/` directory instead of single `agent-card.json`
+- Deduplicated `listenBlock` in scaffolder (single definition reused by both x402 and non-x402 paths)
+
 ## 1.5.0 (2026-02-19)
 
 ### Features
