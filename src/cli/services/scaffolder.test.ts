@@ -1033,6 +1033,44 @@ describe("template integration (actual template files)", () => {
       expect(x402Pos).toBeLessThan(setupPos);
     });
   });
+
+  describe("agent-registration.json.template", () => {
+    const template = readTemplate("agent-registration.json.template");
+
+    it("should produce valid JSON with supportedTrust for echo config", () => {
+      const result = processTemplate(template, echoConfig);
+      const parsed = JSON.parse(result);
+
+      expect(parsed.supportedTrust).toEqual(["reputation"]);
+      expect(parsed.name).toBe("Echo Bot");
+      expect(parsed.description).toBe("Echoes back messages");
+      expect(parsed.registrations).toEqual([]);
+      expect(parsed.active).toBe(true);
+    });
+
+    it("should set x402Support false and x402Networks empty for non-x402 config", () => {
+      const result = processTemplate(template, echoConfig);
+      const parsed = JSON.parse(result);
+
+      expect(parsed.x402Support).toBe(false);
+      expect(parsed.x402Networks).toEqual([]);
+    });
+
+    it("should set x402Support true alongside supportedTrust for x402 config", () => {
+      const result = processTemplate(template, x402Config);
+      const parsed = JSON.parse(result);
+
+      expect(parsed.x402Support).toBe(true);
+      expect(parsed.x402Networks).toEqual(["evm"]);
+      expect(parsed.supportedTrust).toEqual(["reputation"]);
+      expect(parsed.registrations).toEqual([]);
+    });
+
+    it("should not contain unresolved placeholders", () => {
+      const result = processTemplate(template, echoConfig);
+      expect(result).not.toContain("{{");
+    });
+  });
 });
 
 describe("buildPaymentsModule", () => {
