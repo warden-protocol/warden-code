@@ -317,6 +317,102 @@
                 border-radius: 6px 6px 6px 2px;
                 color: #ccc;
             }
+            .message.agent.md {
+                white-space: normal;
+            }
+            .message.agent.md p {
+                margin: 0 0 0.6em;
+            }
+            .message.agent.md p:last-child {
+                margin-bottom: 0;
+            }
+            .message.agent.md h1,
+            .message.agent.md h2,
+            .message.agent.md h3,
+            .message.agent.md h4 {
+                margin: 0.8em 0 0.3em;
+                color: #e8e8e8;
+                line-height: 1.3;
+            }
+            .message.agent.md h1 {
+                font-size: 15px;
+            }
+            .message.agent.md h2 {
+                font-size: 14px;
+            }
+            .message.agent.md h3 {
+                font-size: 13px;
+            }
+            .message.agent.md h4 {
+                font-size: 12px;
+            }
+            .message.agent.md h1:first-child,
+            .message.agent.md h2:first-child,
+            .message.agent.md h3:first-child {
+                margin-top: 0;
+            }
+            .message.agent.md code {
+                background: #1a1a1a;
+                border: 1px solid #2a2a2a;
+                padding: 1px 5px;
+                border-radius: 3px;
+                font-size: 12px;
+            }
+            .message.agent.md pre {
+                background: #0d0d0d;
+                border: 1px solid #222;
+                border-radius: 4px;
+                padding: 10px 12px;
+                overflow-x: auto;
+                margin: 0.5em 0;
+            }
+            .message.agent.md pre code {
+                background: none;
+                border: none;
+                padding: 0;
+                font-size: 12px;
+                color: #b5b5b5;
+            }
+            .message.agent.md ul,
+            .message.agent.md ol {
+                margin: 0.4em 0;
+                padding-left: 1.4em;
+            }
+            .message.agent.md li {
+                margin: 0.15em 0;
+            }
+            .message.agent.md blockquote {
+                border-left: 2px solid #333;
+                margin: 0.5em 0;
+                padding: 2px 0 2px 12px;
+                color: #888;
+            }
+            .message.agent.md a {
+                color: #c7ff8e;
+                text-decoration: none;
+            }
+            .message.agent.md a:hover {
+                text-decoration: underline;
+            }
+            .message.agent.md table {
+                border-collapse: collapse;
+                margin: 0.5em 0;
+                font-size: 12px;
+            }
+            .message.agent.md th,
+            .message.agent.md td {
+                border: 1px solid #2a2a2a;
+                padding: 4px 8px;
+            }
+            .message.agent.md th {
+                background: #1a1a1a;
+                color: #e8e8e8;
+            }
+            .message.agent.md hr {
+                border: none;
+                border-top: 1px solid #222;
+                margin: 0.8em 0;
+            }
             .message.system {
                 align-self: center;
                 color: #555;
@@ -835,7 +931,20 @@
 
                 const div = document.createElement("div");
                 div.className = `message ${kind}`;
-                div.textContent = text;
+                // Use a content span so we can upgrade to markdown without
+                // losing sibling elements (payment tag, feedback row)
+                const content = document.createElement("span");
+                content.textContent = text;
+                div.appendChild(content);
+                // Render markdown for agent messages (async, progressive)
+                if (kind === "agent") {
+                    renderMarkdown(text).then((html) => {
+                        if (!html) return;
+                        div.classList.add("md");
+                        content.innerHTML = html;
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    });
+                }
                 if (payment?.transaction) {
                     const explorerBase =
                         BLOCK_EXPLORERS[payment.network] ||
@@ -901,6 +1010,53 @@
             }
 
             // -----------------------------------------------------------------------
+            // Markdown renderer (lazy-loaded from CDN)
+            // -----------------------------------------------------------------------
+            async function ensureMarked() {
+                if (markedModule) return markedModule;
+                markedModule = await import("https://esm.sh/marked@15?bundle");
+                markedModule.marked.setOptions({ breaks: true, gfm: true });
+                return markedModule;
+            }
+
+            function sanitizeHtml(html) {
+                const el = document.createElement("div");
+                el.innerHTML = html;
+                el.querySelectorAll("script,iframe,object,embed,form").forEach(
+                    (n) => n.remove(),
+                );
+                el.querySelectorAll("*").forEach((n) => {
+                    for (const attr of [...n.attributes]) {
+                        if (
+                            attr.name.startsWith("on") ||
+                            (attr.name === "href" &&
+                                attr.value
+                                    .trimStart()
+                                    .startsWith("javascript:"))
+                        ) {
+                            n.removeAttribute(attr.name);
+                        }
+                    }
+                });
+                // Open all links in new tab
+                el.querySelectorAll("a").forEach((a) => {
+                    a.setAttribute("target", "_blank");
+                    a.setAttribute("rel", "noopener");
+                });
+                return el.innerHTML;
+            }
+
+            async function renderMarkdown(text) {
+                try {
+                    const m = await ensureMarked();
+                    const raw = await m.marked.parse(text);
+                    return sanitizeHtml(raw);
+                } catch {
+                    return null;
+                }
+            }
+
+            // -----------------------------------------------------------------------
             // x402 payment support (lazy-loaded from CDN)
             // -----------------------------------------------------------------------
             async function loadX402(networks) {
@@ -947,8 +1103,13 @@
                     if (!showSolana) {
                         connectPhantomBtn.classList.add("hidden");
                     }
+                    const x4 = agentCard?.x402;
+                    const priceInfo =
+                        x4?.price && x4?.currency
+                            ? ` (${x4.price} ${x4.currency} per request)`
+                            : "";
                     appendMessage(
-                        "This agent requires payment. Connect a wallet to continue.",
+                        `This agent requires payment${priceInfo}.`,
                         "system",
                     );
                 } catch (err) {
@@ -973,6 +1134,8 @@
             let evmChainId = null;
             // Cached viem module so we can recreate the wallet client on chain change
             let viemModule = null;
+            // Cached marked module for markdown rendering
+            let markedModule = null;
 
             function rebuildEvmWalletClient(chainId) {
                 if (!viemModule || !evmWalletClient) return;
