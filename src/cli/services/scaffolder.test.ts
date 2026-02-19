@@ -144,12 +144,14 @@ describe("processTemplate", () => {
       const parsed = JSON.parse(result);
 
       expect(parsed).toHaveLength(1);
-      expect(parsed[0]).toEqual({
+      expect(parsed[0]).toMatchObject({
         id: "calc",
         name: "Calculator",
         description: "Does math",
-        tags: [],
       });
+      expect(parsed[0].tags).toContain(
+        "oasf:math_and_coding/mathematical_reasoning/operations",
+      );
     });
 
     it("should produce valid JSON for multiple skills", () => {
@@ -167,6 +169,65 @@ describe("processTemplate", () => {
       expect(parsed).toHaveLength(2);
       expect(parsed[0].id).toBe("a");
       expect(parsed[1].id).toBe("b");
+    });
+  });
+
+  describe("OASF auto-tagging", () => {
+    it("should auto-tag skills with matching OASF categories in {{skills}}", () => {
+      const content = "skills: [{{skills}}]";
+      const config = createMockConfig({
+        skills: [
+          {
+            id: "coder",
+            name: "Code Generator",
+            description: "Generates code from natural language prompts",
+          },
+        ],
+      });
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain(
+        "oasf:math_and_coding/coding_skills/text_to_code",
+      );
+    });
+
+    it("should auto-tag skills with matching OASF categories in {{skills_json}}", () => {
+      const content = "[{{skills_json}}]";
+      const config = createMockConfig({
+        skills: [
+          {
+            id: "translator",
+            name: "Translator",
+            description: "Translates documents between languages",
+          },
+        ],
+      });
+
+      const result = processTemplate(content, config);
+      const parsed = JSON.parse(result);
+
+      expect(parsed[0].tags).toContain(
+        "oasf:natural_language/translation/translation",
+      );
+    });
+
+    it("should leave tags as empty array when no keywords match", () => {
+      const content = "[{{skills_json}}]";
+      const config = createMockConfig({
+        skills: [
+          {
+            id: "greeter",
+            name: "Greeter",
+            description: "Says hello to users",
+          },
+        ],
+      });
+
+      const result = processTemplate(content, config);
+      const parsed = JSON.parse(result);
+
+      expect(parsed[0].tags).toEqual([]);
     });
   });
 
