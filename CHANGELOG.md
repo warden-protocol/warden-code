@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.7.0 (2026-02-19)
+
+### Features
+
+- ERC-8004 on-chain reputation display in scaffolded agent front-end: aggregated star rating, numeric score, and review count fetched from ReputationRegistry across all registered chains
+- Feedback submission: 5-star rating row on every agent message, auto-switches wallet to cheapest L2 for minimal gas fees
+- Pre-flight ownership check prevents MetaMask transaction popup when agent owner tries to self-rate
+- Dynamic favicon from agent card `image` field
+
+### Fixes
+
+- Payment transaction hash now always links to block explorer (fallback to wallet's current chain when `payment.network` doesn't match directly)
+- Star rating hover fills all stars up to the hovered one with green color instead of highlighting individually
+
+### Improvements
+
+- Removed skills display from front-end (OASF tag paths were not user-friendly); example prompts still work
+- `supportedTrust: ["reputation"]` added to agent registration template
+- Shared `ensureViem()` helper for lazy-loading viem (reused by x402 payments and reputation)
+
 ## 1.6.0 (2026-02-19)
 
 ### Features
