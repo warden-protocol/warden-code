@@ -46,6 +46,8 @@ Run `/new` to start the agent creation wizard:
 5. **Skills** - Define agent capabilities (optional)
 6. **x402 Payments** - Optionally gate requests behind per-request USDC payments (see [x402 Payments](#x402-payments) below)
 
+Skills are automatically tagged with [OASF](https://docs.agntcy.org/oasf/open-agentic-schema-framework/) categories based on their name and description. Tags use the format `oasf:<path>` (e.g., `oasf:natural_language/generation/dialogue_generation`) and appear in the generated `agent-card.json`.
+
 After generation, your agent will be ready at `src/agent.ts`.
 
 ## Models
