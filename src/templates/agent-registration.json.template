@@ -14,5 +14,5 @@
   "x402Networks": {{x402_networks}},
   "active": true,
   "registrations": [],
-  "supportedTrust": []
+  "supportedTrust": ["reputation"]
 }

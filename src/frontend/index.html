@@ -140,30 +140,6 @@
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
             }
-            .skills-list {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-            }
-            .skill-tag {
-                font-size: 11px;
-                color: #d4d4d4;
-                background: transparent;
-                border: 1px solid #333;
-                padding: 4px 12px;
-                border-radius: 2px;
-                letter-spacing: 0.02em;
-            }
-            .skill-tag-category {
-                font-size: 9px;
-                color: #555;
-                background: transparent;
-                border: 1px dashed #2a2a2a;
-                padding: 3px 10px;
-                border-radius: 2px;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-            }
             .provider-row {
                 margin-top: 10px;
                 font-size: 10px;
@@ -178,6 +154,83 @@
             }
             .provider-row a:hover {
                 color: #f0f0f0;
+            }
+
+            /* Reputation display */
+            .reputation-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-top: 10px;
+            }
+            .reputation-badge {
+                font-size: 11px;
+                color: #d4d4d4;
+                border: 1px solid #333;
+                padding: 4px 12px;
+                border-radius: 2px;
+                letter-spacing: 0.02em;
+            }
+            .reputation-score {
+                color: #c7ff8e;
+                font-weight: 600;
+            }
+            .reputation-count {
+                font-size: 10px;
+                color: #555;
+                letter-spacing: 0.05em;
+            }
+
+            /* Feedback stars on agent messages */
+            .feedback-row {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                margin-top: 6px;
+                padding: 2px 0;
+            }
+            .feedback-star {
+                font-size: 14px;
+                color: #333;
+                cursor: pointer;
+                background: none;
+                border: none;
+                padding: 0 1px;
+                font-family: inherit;
+                line-height: 1;
+                transition: color 0.15s;
+            }
+            .feedback-star:hover,
+            .feedback-star.active {
+                color: #c7ff8e;
+            }
+            .feedback-star.filled {
+                color: #c7ff8e;
+            }
+            .feedback-star:disabled {
+                cursor: default;
+                opacity: 0.4;
+            }
+            .feedback-label {
+                font-size: 9px;
+                color: #555;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-left: 4px;
+            }
+            .feedback-tx {
+                display: inline-block;
+                font-size: 9px;
+                color: #c7ff8e;
+                border: 1px solid #2a3f18;
+                padding: 2px 8px;
+                border-radius: 2px;
+                letter-spacing: 0.05em;
+                text-decoration: none;
+            }
+            a.feedback-tx:hover {
+                color: #e0ffbf;
+                border-color: #4a7a28;
             }
 
             /* Hero section (shown before first message) */
@@ -290,6 +343,7 @@
             a.payment-tag:hover {
                 color: #e0ffbf;
                 border-color: #4a7a28;
+                text-decoration: underline;
             }
             .message.status {
                 align-self: flex-start;
@@ -449,7 +503,8 @@
         <div class="info-bar" id="info-bar">
             <div class="agent-description" id="agent-description"></div>
             <div class="capabilities-row" id="capabilities-row"></div>
-            <div class="skills-list" id="skills-list"></div>
+
+            <div class="reputation-row hidden" id="reputation-row"></div>
             <div class="provider-row hidden" id="provider-row"></div>
         </div>
 
@@ -498,7 +553,7 @@
             const agentVersionEl = $("agent-version");
             const agentDescEl = $("agent-description");
             const capsRowEl = $("capabilities-row");
-            const skillsListEl = $("skills-list");
+
             const providerRowEl = $("provider-row");
             const suggestionsEl = $("suggestions");
             const heroEl = $("hero");
@@ -529,6 +584,13 @@
                     agentNameEl.textContent = agentCard.name || "Agent";
                     document.title = agentCard.name || "Agent";
 
+                    if (agentCard.image) {
+                        const link = document.createElement("link");
+                        link.rel = "icon";
+                        link.href = agentCard.image;
+                        document.head.appendChild(link);
+                    }
+
                     if (agentCard.version) {
                         agentVersionEl.textContent = `v${agentCard.version}`;
                         agentVersionEl.classList.remove("hidden");
@@ -549,24 +611,7 @@
                     if (caps.pushNotifications)
                         addBadge(capsRowEl, "push notifications");
 
-                    // Skills (with tags as sub-categories)
-                    const skills = agentCard.skills || [];
-                    skillsListEl.innerHTML = "";
-                    const allTags = new Set();
-                    for (const skill of skills) {
-                        const tag = document.createElement("span");
-                        tag.className = "skill-tag";
-                        tag.textContent = skill.name;
-                        if (skill.description) tag.title = skill.description;
-                        skillsListEl.appendChild(tag);
-                        for (const t of skill.tags || []) allTags.add(t);
-                    }
-                    for (const t of allTags) {
-                        const cat = document.createElement("span");
-                        cat.className = "skill-tag-category";
-                        cat.textContent = t;
-                        skillsListEl.appendChild(cat);
-                    }
+                    // Skills display removed (OASF tags are not user-friendly)
 
                     // Provider attribution
                     const provider = agentCard.provider;
@@ -580,7 +625,7 @@
                     }
 
                     // Example prompts as conversation starters
-                    const examples = skills.flatMap((s) =>
+                    const examples = (agentCard.skills || []).flatMap((s) =>
                         (s.examples || []).slice(0, 2),
                     );
                     suggestionsEl.innerHTML = "";
@@ -613,6 +658,36 @@
                                 await loadX402(reg.x402Networks);
                                 welcomeMsg.textContent =
                                     "Connect a wallet, then send a message.";
+                            }
+
+                            // Parse on-chain registrations for reputation
+                            if (Array.isArray(reg.registrations)) {
+                                for (const r of reg.registrations) {
+                                    if (!r.agentId || !r.agentRegistry)
+                                        continue;
+                                    // agentRegistry format: "eip155:{chainId}:{address}"
+                                    const parts = r.agentRegistry.split(":");
+                                    if (parts.length < 2) continue;
+                                    const chainId = parseInt(parts[1], 10);
+                                    if (isNaN(chainId)) continue;
+                                    agentRegistrations.push({
+                                        chainId,
+                                        agentId: BigInt(r.agentId),
+                                        identityRegistry: parts[2] || null,
+                                        isMainnet:
+                                            MAINNET_CHAIN_IDS.has(chainId),
+                                    });
+                                }
+                            }
+                            if (agentRegistrations.length > 0) {
+                                // Show wallet area for reputation (EVM only)
+                                if (!reg.x402Support) {
+                                    walletArea.classList.remove("hidden");
+                                    connectPhantomBtn.classList.add("hidden");
+                                    welcomeMsg.textContent =
+                                        "Send a message to start chatting. Connect a wallet to leave feedback.";
+                                }
+                                loadReputation();
                             }
                         }
                     } catch {}
@@ -663,6 +738,95 @@
             };
 
             // -----------------------------------------------------------------------
+            // ERC-8004 Reputation Registry constants
+            // -----------------------------------------------------------------------
+            const PUBLIC_RPCS = {
+                "eip155:1": "https://eth.drpc.org",
+                "eip155:8453": "https://mainnet.base.org",
+                "eip155:42161": "https://arb1.arbitrum.io/rpc",
+                "eip155:10": "https://mainnet.optimism.io",
+                "eip155:11155111": "https://sepolia.drpc.org",
+                "eip155:84532": "https://sepolia.base.org",
+            };
+
+            const REPUTATION_REGISTRY = {
+                mainnet: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+                testnet: "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+            };
+
+            const MAINNET_CHAIN_IDS = new Set([1, 8453, 42161, 10, 137]);
+
+            // Lower rank = cheaper gas. L2s first, L1 last.
+            const CHAIN_COST_RANK = {
+                8453: 0, // Base
+                84532: 0, // Base Sepolia
+                10: 1, // Optimism
+                42161: 1, // Arbitrum
+                137: 2, // Polygon
+                11155111: 3, // Sepolia (testnet L1)
+                1: 4, // Ethereum mainnet
+            };
+
+            const REPUTATION_ABI = [
+                {
+                    name: "giveFeedback",
+                    type: "function",
+                    stateMutability: "nonpayable",
+                    inputs: [
+                        { name: "agentId", type: "uint256" },
+                        { name: "value", type: "int128" },
+                        { name: "valueDecimals", type: "uint8" },
+                        { name: "tag1", type: "string" },
+                        { name: "tag2", type: "string" },
+                        { name: "endpoint", type: "string" },
+                        { name: "feedbackURI", type: "string" },
+                        { name: "feedbackHash", type: "bytes32" },
+                    ],
+                    outputs: [],
+                },
+                {
+                    name: "getSummary",
+                    type: "function",
+                    stateMutability: "view",
+                    inputs: [
+                        { name: "agentId", type: "uint256" },
+                        { name: "clientAddresses", type: "address[]" },
+                        { name: "tag1", type: "string" },
+                        { name: "tag2", type: "string" },
+                    ],
+                    outputs: [
+                        { name: "count", type: "uint64" },
+                        { name: "summaryValue", type: "int128" },
+                        { name: "summaryValueDecimals", type: "uint8" },
+                    ],
+                },
+                {
+                    name: "getClients",
+                    type: "function",
+                    stateMutability: "view",
+                    inputs: [{ name: "agentId", type: "uint256" }],
+                    outputs: [{ name: "", type: "address[]" }],
+                },
+            ];
+
+            const IDENTITY_ABI = [
+                {
+                    name: "isAuthorizedOrOwner",
+                    type: "function",
+                    stateMutability: "view",
+                    inputs: [
+                        { name: "spender", type: "address" },
+                        { name: "agentId", type: "uint256" },
+                    ],
+                    outputs: [{ name: "", type: "bool" }],
+                },
+            ];
+
+            let agentRegistrations = [];
+            let reputationScore = null;
+            let reputationLoaded = false;
+
+            // -----------------------------------------------------------------------
             // Message display helpers
             // -----------------------------------------------------------------------
             function appendMessage(text, kind, payment) {
@@ -673,7 +837,11 @@
                 div.className = `message ${kind}`;
                 div.textContent = text;
                 if (payment?.transaction) {
-                    const explorerBase = BLOCK_EXPLORERS[payment.network];
+                    const explorerBase =
+                        BLOCK_EXPLORERS[payment.network] ||
+                        (evmChainId &&
+                            BLOCK_EXPLORERS[`eip155:${evmChainId}`]) ||
+                        null;
                     div.appendChild(document.createElement("br"));
                     if (explorerBase) {
                         const link = document.createElement("a");
@@ -690,6 +858,11 @@
                         div.appendChild(tag);
                     }
                 }
+                // Append feedback stars to agent messages when registered
+                if (kind === "agent" && agentRegistrations.length > 0) {
+                    div.appendChild(createFeedbackRow());
+                }
+
                 messagesDiv.appendChild(div);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
@@ -716,6 +889,15 @@
 
             function removeStatus(el) {
                 el.remove();
+            }
+
+            // -----------------------------------------------------------------------
+            // Viem loader (shared by x402 payments and reputation)
+            // -----------------------------------------------------------------------
+            async function ensureViem() {
+                if (viemModule) return viemModule;
+                viemModule = await import("https://esm.sh/viem@2?bundle");
+                return viemModule;
             }
 
             // -----------------------------------------------------------------------
@@ -841,6 +1023,7 @@
                     connectEvmBtn.style.display = "none";
                     disconnectEvmBtn.style.display = "inline-block";
                     appendMessage(`EVM wallet connected: ${short}`, "system");
+                    refreshFeedbackRows();
                 } catch (err) {
                     appendMessage(
                         `Connection failed: ${err.message || err}`,
@@ -858,6 +1041,7 @@
                 connectEvmBtn.style.display = "inline-block";
                 disconnectEvmBtn.style.display = "none";
                 appendMessage("EVM wallet disconnected.", "system");
+                refreshFeedbackRows();
             }
 
             // -----------------------------------------------------------------------
@@ -997,6 +1181,277 @@
                 };
 
                 return wrapFetchWithPayment(instrumented, client);
+            }
+
+            // -----------------------------------------------------------------------
+            // ERC-8004 Reputation: display + feedback
+            // -----------------------------------------------------------------------
+            function getMatchingRegistration() {
+                if (!evmWalletClient || !evmChainId) return null;
+                return (
+                    agentRegistrations.find((r) => r.chainId === evmChainId) ||
+                    null
+                );
+            }
+
+            function getCheapestRegistration() {
+                if (agentRegistrations.length === 0) return null;
+                return agentRegistrations.reduce((best, r) => {
+                    const bestRank = CHAIN_COST_RANK[best.chainId] ?? 99;
+                    const rRank = CHAIN_COST_RANK[r.chainId] ?? 99;
+                    return rRank < bestRank ? r : best;
+                });
+            }
+
+            async function loadReputation() {
+                if (agentRegistrations.length === 0) return;
+                try {
+                    const viem = await ensureViem();
+                    const results = await Promise.allSettled(
+                        agentRegistrations.map(async (reg) => {
+                            const rpcUrl = PUBLIC_RPCS[`eip155:${reg.chainId}`];
+                            if (!rpcUrl) return null;
+                            const addr = reg.isMainnet
+                                ? REPUTATION_REGISTRY.mainnet
+                                : REPUTATION_REGISTRY.testnet;
+                            const client = viem.createPublicClient({
+                                transport: viem.http(rpcUrl),
+                            });
+                            const clients = await client.readContract({
+                                address: addr,
+                                abi: REPUTATION_ABI,
+                                functionName: "getClients",
+                                args: [reg.agentId],
+                            });
+                            if (!clients || clients.length === 0)
+                                return { count: 0n, value: 0n };
+                            const [count, summaryValue] =
+                                await client.readContract({
+                                    address: addr,
+                                    abi: REPUTATION_ABI,
+                                    functionName: "getSummary",
+                                    args: [reg.agentId, clients, "", ""],
+                                });
+                            return { count, value: summaryValue };
+                        }),
+                    );
+                    let totalCount = 0n;
+                    let weightedSum = 0n;
+                    for (const r of results) {
+                        if (r.status !== "fulfilled" || !r.value) continue;
+                        const { count, value } = r.value;
+                        totalCount += BigInt(count);
+                        weightedSum += BigInt(value) * BigInt(count);
+                    }
+                    const countNum = Number(totalCount);
+                    const average =
+                        countNum > 0 ? Number(weightedSum / totalCount) : 0;
+                    reputationScore = { count: countNum, average };
+                    reputationLoaded = true;
+                    renderReputation();
+                } catch (err) {
+                    console.warn("Failed to load reputation:", err);
+                }
+            }
+
+            function renderReputation() {
+                const row = $("reputation-row");
+                if (!reputationScore || reputationScore.count === 0) {
+                    row.innerHTML =
+                        '<span class="reputation-count">no feedback yet</span>';
+                    row.classList.remove("hidden");
+                    return;
+                }
+                const { count, average } = reputationScore;
+                const displayScore = Math.round(average);
+                const starCount = Math.round(average / 20);
+                let starsHtml = "";
+                for (let i = 1; i <= 5; i++) {
+                    starsHtml += i <= starCount ? "\u2605" : "\u2606";
+                }
+                row.innerHTML = `<span class="reputation-badge"><span class="reputation-score">${starsHtml} ${displayScore}/100</span></span><span class="reputation-count">${count} review${count !== 1 ? "s" : ""} on-chain</span>`;
+                row.classList.remove("hidden");
+            }
+
+            function createFeedbackRow() {
+                const row = document.createElement("div");
+                row.className = "feedback-row";
+                const canSubmit =
+                    evmWalletClient && agentRegistrations.length > 0;
+                for (let i = 1; i <= 5; i++) {
+                    const star = document.createElement("button");
+                    star.className = "feedback-star";
+                    star.dataset.star = i;
+                    star.textContent = "\u2606";
+                    star.disabled = !canSubmit;
+                    star.title = canSubmit
+                        ? `Rate ${i * 20}/100`
+                        : "Connect wallet to rate";
+                    if (canSubmit) {
+                        star.addEventListener("click", () =>
+                            submitFeedback(row, i),
+                        );
+                    }
+                    row.appendChild(star);
+                }
+                if (canSubmit) {
+                    row.addEventListener("mouseover", (e) => {
+                        if (row.dataset.submitted) return;
+                        const target = e.target.closest(".feedback-star");
+                        if (!target) return;
+                        const hovered = parseInt(target.dataset.star, 10);
+                        row.querySelectorAll(".feedback-star").forEach((s) => {
+                            const active =
+                                parseInt(s.dataset.star, 10) <= hovered;
+                            s.textContent = active ? "\u2605" : "\u2606";
+                            s.classList.toggle("filled", active);
+                        });
+                    });
+                    row.addEventListener("mouseleave", () => {
+                        if (row.dataset.submitted) return;
+                        row.querySelectorAll(".feedback-star").forEach((s) => {
+                            s.textContent = "\u2606";
+                            s.classList.remove("filled");
+                        });
+                    });
+                }
+                const label = document.createElement("span");
+                label.className = "feedback-label";
+                label.textContent = canSubmit
+                    ? "rate this response"
+                    : "connect wallet to rate";
+                row.appendChild(label);
+                return row;
+            }
+
+            async function submitFeedback(row, stars) {
+                if (!evmWalletClient) return;
+                if (row.dataset.submitted) return;
+
+                // Pick the cheapest chain, auto-switch if needed
+                const reg = getCheapestRegistration();
+                if (!reg) return;
+
+                const starBtns = row.querySelectorAll(".feedback-star");
+                starBtns.forEach((s, idx) => {
+                    s.disabled = true;
+                    const filled = idx < stars;
+                    s.textContent = filled ? "\u2605" : "\u2606";
+                    s.classList.toggle("filled", filled);
+                });
+                row.dataset.submitted = "true";
+                const label = row.querySelector(".feedback-label");
+
+                if (reg.chainId !== evmChainId) {
+                    label.textContent = "switching chain...";
+                    try {
+                        await window.ethereum.request({
+                            method: "wallet_switchEthereumChain",
+                            params: [
+                                { chainId: "0x" + reg.chainId.toString(16) },
+                            ],
+                        });
+                        rebuildEvmWalletClient(reg.chainId);
+                    } catch (switchErr) {
+                        label.textContent = "chain switch rejected";
+                        row.dataset.submitted = "";
+                        starBtns.forEach((s) => {
+                            s.disabled = false;
+                        });
+                        return;
+                    }
+                }
+
+                label.textContent = "submitting...";
+
+                const addr = reg.isMainnet
+                    ? REPUTATION_REGISTRY.mainnet
+                    : REPUTATION_REGISTRY.testnet;
+
+                try {
+                    // Pre-flight: check if caller is agent owner (free view call)
+                    if (reg.identityRegistry) {
+                        const rpcUrl = PUBLIC_RPCS[`eip155:${reg.chainId}`];
+                        if (rpcUrl) {
+                            const viem = await ensureViem();
+                            const pub = viem.createPublicClient({
+                                transport: viem.http(rpcUrl),
+                            });
+                            const isOwner = await pub.readContract({
+                                address: reg.identityRegistry,
+                                abi: IDENTITY_ABI,
+                                functionName: "isAuthorizedOrOwner",
+                                args: [
+                                    evmWalletClient.account.address,
+                                    reg.agentId,
+                                ],
+                            });
+                            if (isOwner) {
+                                label.textContent = "cannot rate own agent";
+                                return;
+                            }
+                        }
+                    }
+
+                    const hash = await evmWalletClient.writeContract({
+                        address: addr,
+                        abi: REPUTATION_ABI,
+                        functionName: "giveFeedback",
+                        args: [
+                            reg.agentId,
+                            BigInt(stars * 20),
+                            0,
+                            "starred",
+                            "",
+                            window.location.origin,
+                            "",
+                            "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        ],
+                    });
+                    const explorerBase =
+                        BLOCK_EXPLORERS[`eip155:${reg.chainId}`];
+                    if (explorerBase) {
+                        const link = document.createElement("a");
+                        link.className = "feedback-tx";
+                        link.href = explorerBase + hash;
+                        link.target = "_blank";
+                        link.rel = "noopener";
+                        link.textContent = `tx: ${hash.slice(0, 10)}...`;
+                        label.replaceWith(link);
+                    } else {
+                        label.className = "feedback-tx";
+                        label.textContent = `tx: ${hash.slice(0, 10)}...`;
+                    }
+                    setTimeout(() => loadReputation(), 5000);
+                } catch (err) {
+                    const msg = err.message || String(err);
+                    if (msg.includes("execution reverted")) {
+                        label.textContent = "cannot rate own agent";
+                    } else {
+                        label.textContent = `failed: ${msg.slice(0, 60)}`;
+                        row.dataset.submitted = "";
+                        starBtns.forEach((s) => {
+                            s.disabled = false;
+                        });
+                    }
+                }
+            }
+
+            function refreshFeedbackRows() {
+                const canSubmit =
+                    evmWalletClient && agentRegistrations.length > 0;
+                for (const row of document.querySelectorAll(".feedback-row")) {
+                    if (row.dataset.submitted) continue;
+                    row.querySelectorAll(".feedback-star").forEach((s) => {
+                        s.disabled = !canSubmit;
+                    });
+                    const label = row.querySelector(".feedback-label");
+                    if (label) {
+                        label.textContent = canSubmit
+                            ? "rate this response"
+                            : "connect wallet to rate";
+                    }
+                }
             }
 
             // -----------------------------------------------------------------------
@@ -1289,6 +1744,7 @@
                     const newChainId = parseInt(hexId, 16);
                     rebuildEvmWalletClient(newChainId);
                     appendMessage(`Switched to chain ${newChainId}.`, "system");
+                    refreshFeedbackRows();
                 });
             }
 
