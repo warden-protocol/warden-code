@@ -1,5 +1,7 @@
 import "dotenv/config";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { AgentServer } from "@wardenprotocol/agent-kit";
 import { handler } from "./agent.js";
 {{x402_imports}}
@@ -10,12 +12,49 @@ const BASE_URL = `http://${HOST}:${PORT}`;
 const AGENT_URL = process.env.AGENT_URL || BASE_URL;
 
 const agentCard = JSON.parse(
-  readFileSync(new URL("../agent-card.json", import.meta.url), "utf-8"),
+  readFileSync(new URL("../public/.well-known/agent-card.json", import.meta.url), "utf-8"),
 );
 
-const server = new AgentServer({
-  agentCard: { ...agentCard, url: AGENT_URL },
-  handler,
-});
+const PUBLIC_DIR = new URL("../public", import.meta.url).pathname;
+
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".txt": "text/plain",
+};
+
+function serveStatic(req: IncomingMessage, res: ServerResponse): boolean {
+  if (req.method !== "GET") return false;
+  const reqUrl = req.url?.split("?")[0] || "/";
+  const filePath = reqUrl === "/" ? "/index.html" : reqUrl;
+  const safePath = path.normalize(decodeURIComponent(filePath));
+  const fullPath = path.join(PUBLIC_DIR, safePath);
+  if (!fullPath.startsWith(PUBLIC_DIR)) return false;
+  try {
+    const data = readFileSync(fullPath);
+    const ext = path.extname(fullPath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    res.writeHead(200, { "Content-Type": contentType });
+    res.end(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (agentCard.url && agentCard.url !== AGENT_URL) {
+  console.warn(`Warning: agent card "url" is "${agentCard.url}" but server is "${AGENT_URL}".`);
+  console.warn(`Update public/.well-known/agent-card.json to match your deployment URL.`);
+  console.warn();
+}
+
+const server = new AgentServer({ agentCard, handler });
 
 {{x402_listen}}

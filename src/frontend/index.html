@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Agent</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family:
+                    "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono",
+                    "Courier New", monospace;
+                background: #0c0c0c;
+                color: #d4d4d4;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                /* Dot grid background */
+                background-image: radial-gradient(
+                    circle,
+                    #1a1a1a 1px,
+                    transparent 1px
+                );
+                background-size: 24px 24px;
+            }
+
+            /* Header */
+            header {
+                padding: 14px 28px;
+                border-bottom: 1px solid #1e1e1e;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-shrink: 0;
+                gap: 12px;
+                background: rgba(12, 12, 12, 0.9);
+                backdrop-filter: blur(12px);
+            }
+            .agent-meta {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-width: 0;
+            }
+            .agent-name {
+                font-size: 14px;
+                font-weight: 600;
+                color: #f0f0f0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                letter-spacing: 0.02em;
+            }
+            .agent-version {
+                font-size: 10px;
+                color: #555;
+                border: 1px solid #2a2a2a;
+                padding: 2px 8px;
+                border-radius: 3px;
+                white-space: nowrap;
+                letter-spacing: 0.05em;
+            }
+            .wallet-area {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-shrink: 0;
+            }
+            .wallet-info {
+                font-size: 11px;
+                color: #c7ff8e;
+            }
+            .phantom-info {
+                font-size: 11px;
+                color: #ab9ff2;
+            }
+
+            /* Info bar with corner brackets */
+            .info-bar {
+                padding: 20px 28px;
+                border-bottom: 1px solid #1e1e1e;
+                flex-shrink: 0;
+                position: relative;
+                background: rgba(12, 12, 12, 0.6);
+            }
+            .info-bar::before,
+            .info-bar::after {
+                content: "";
+                position: absolute;
+                width: 12px;
+                height: 12px;
+                border-color: #333;
+                border-style: dashed;
+                border-width: 0;
+            }
+            .info-bar::before {
+                top: 8px;
+                left: 12px;
+                border-top-width: 1px;
+                border-left-width: 1px;
+            }
+            .info-bar::after {
+                bottom: 8px;
+                right: 12px;
+                border-bottom-width: 1px;
+                border-right-width: 1px;
+            }
+            .agent-description {
+                font-size: 12px;
+                color: #777;
+                line-height: 1.6;
+                margin-bottom: 10px;
+                max-width: 600px;
+            }
+            .agent-description:empty {
+                margin-bottom: 0;
+            }
+            .capabilities-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .capabilities-row:empty {
+                margin-bottom: 0;
+            }
+            .cap-badge {
+                font-size: 9px;
+                color: #666;
+                border: 1px solid #2a2a2a;
+                padding: 3px 10px;
+                border-radius: 2px;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+            .skills-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .skill-tag {
+                font-size: 11px;
+                color: #d4d4d4;
+                background: transparent;
+                border: 1px solid #333;
+                padding: 4px 12px;
+                border-radius: 2px;
+                letter-spacing: 0.02em;
+            }
+            .skill-tag-category {
+                font-size: 9px;
+                color: #555;
+                background: transparent;
+                border: 1px dashed #2a2a2a;
+                padding: 3px 10px;
+                border-radius: 2px;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }
+            .provider-row {
+                margin-top: 10px;
+                font-size: 10px;
+                color: #555;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+            .provider-row a {
+                color: #777;
+                text-decoration: none;
+                border-bottom: 1px dashed #444;
+            }
+            .provider-row a:hover {
+                color: #f0f0f0;
+            }
+
+            /* Hero section (shown before first message) */
+            .hero {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 48px 28px 24px;
+                gap: 12px;
+            }
+            .hero-name {
+                font-size: 32px;
+                font-weight: 700;
+                color: #f0f0f0;
+                line-height: 1.2;
+                letter-spacing: -0.02em;
+            }
+            .hero-desc {
+                font-size: 13px;
+                color: #666;
+                line-height: 1.6;
+                max-width: 480px;
+            }
+
+            /* Suggestion prompts */
+            .suggestions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+                padding: 8px 28px 0;
+            }
+            .suggestion-btn {
+                font-size: 11px;
+                color: #888;
+                background: transparent;
+                border: 1px dashed #2a2a2a;
+                padding: 8px 16px;
+                border-radius: 2px;
+                cursor: pointer;
+                font-family: inherit;
+                transition: all 0.15s;
+                text-align: left;
+                max-width: 280px;
+                letter-spacing: 0.01em;
+            }
+            .suggestion-btn:hover {
+                color: #f0f0f0;
+                border-color: #555;
+                border-style: solid;
+            }
+
+            /* Messages area */
+            #messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 24px 28px;
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+            .message {
+                max-width: 640px;
+                line-height: 1.6;
+                font-size: 13px;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .message.user {
+                align-self: flex-end;
+                background: #161616;
+                border: 1px solid #2a2a2a;
+                padding: 10px 14px;
+                border-radius: 6px 6px 2px 6px;
+                color: #e8e8e8;
+            }
+            .message.agent {
+                align-self: flex-start;
+                background: #111;
+                border: 1px solid #1e1e1e;
+                padding: 10px 14px;
+                border-radius: 6px 6px 6px 2px;
+                color: #ccc;
+            }
+            .message.system {
+                align-self: center;
+                color: #555;
+                font-size: 11px;
+                font-style: italic;
+                letter-spacing: 0.02em;
+            }
+            .message.error {
+                align-self: center;
+                color: #e05555;
+                font-size: 11px;
+            }
+            .message .payment-tag {
+                display: inline-block;
+                font-size: 9px;
+                color: #c7ff8e;
+                border: 1px solid #2a3f18;
+                padding: 2px 8px;
+                border-radius: 2px;
+                margin-top: 6px;
+                letter-spacing: 0.05em;
+                text-decoration: none;
+            }
+            a.payment-tag:hover {
+                color: #e0ffbf;
+                border-color: #4a7a28;
+            }
+            .message.status {
+                align-self: flex-start;
+                color: #666;
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 0.3;
+                }
+                50% {
+                    opacity: 1;
+                }
+            }
+            .status-dot {
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: #c7ff8e;
+                animation: pulse 1.4s ease-in-out infinite;
+            }
+
+            /* Input bar */
+            #input-bar {
+                padding: 16px 28px;
+                border-top: 1px solid #1e1e1e;
+                display: flex;
+                gap: 10px;
+                flex-shrink: 0;
+                background: rgba(12, 12, 12, 0.9);
+                backdrop-filter: blur(12px);
+            }
+            #input-bar input {
+                flex: 1;
+                background: #111;
+                border: 1px solid #2a2a2a;
+                color: #d4d4d4;
+                padding: 10px 14px;
+                border-radius: 4px;
+                font-size: 13px;
+                font-family: inherit;
+                outline: none;
+                transition: border-color 0.15s;
+            }
+            #input-bar input::placeholder {
+                color: #444;
+            }
+            #input-bar input:focus {
+                border-color: #555;
+            }
+            #input-bar input:disabled {
+                opacity: 0.3;
+            }
+
+            /* Buttons */
+            .btn-primary {
+                background: #f0f0f0;
+                color: #0c0c0c;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 600;
+                font-family: inherit;
+                cursor: pointer;
+                transition: background 0.15s;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+            }
+            .btn-primary:hover {
+                background: #fff;
+            }
+            .btn-primary:disabled {
+                opacity: 0.3;
+                cursor: default;
+            }
+
+            .btn-wallet {
+                padding: 6px 14px;
+                border-radius: 3px;
+                border: 1px solid #333;
+                font-size: 11px;
+                font-family: inherit;
+                cursor: pointer;
+                transition: all 0.15s;
+                letter-spacing: 0.02em;
+            }
+            .btn-evm {
+                background: #c7ff8e;
+                color: #0c0c0c;
+                border-color: #c7ff8e;
+                font-weight: 600;
+            }
+            .btn-evm:hover {
+                background: #b5f070;
+            }
+            .btn-phantom {
+                background: #ab9ff2;
+                color: #0c0c0c;
+                border-color: #ab9ff2;
+                font-weight: 600;
+            }
+            .btn-phantom:hover {
+                background: #9a8de0;
+            }
+            .btn-disconnect {
+                background: transparent;
+                color: #555;
+                display: none;
+            }
+            .btn-disconnect:hover {
+                color: #d4d4d4;
+                border-color: #555;
+            }
+            .btn-wallet:disabled {
+                opacity: 0.4;
+                cursor: default;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="agent-meta">
+                <span class="agent-name" id="agent-name">Loading...</span>
+                <span class="agent-version hidden" id="agent-version"></span>
+            </div>
+            <div class="wallet-area hidden" id="wallet-area">
+                <span class="wallet-info" id="wallet-info"></span>
+                <button class="btn-wallet btn-evm" id="connect-evm">
+                    Connect MetaMask
+                </button>
+                <button class="btn-wallet btn-disconnect" id="disconnect-evm">
+                    Disconnect EVM
+                </button>
+                <span class="phantom-info" id="phantom-info"></span>
+                <button class="btn-wallet btn-phantom" id="connect-phantom">
+                    Connect Phantom
+                </button>
+                <button
+                    class="btn-wallet btn-disconnect"
+                    id="disconnect-phantom"
+                >
+                    Disconnect SOL
+                </button>
+            </div>
+        </header>
+
+        <div class="info-bar" id="info-bar">
+            <div class="agent-description" id="agent-description"></div>
+            <div class="capabilities-row" id="capabilities-row"></div>
+            <div class="skills-list" id="skills-list"></div>
+            <div class="provider-row hidden" id="provider-row"></div>
+        </div>
+
+        <div id="messages">
+            <div class="hero" id="hero">
+                <div class="hero-name" id="hero-name"></div>
+                <div class="hero-desc" id="hero-desc"></div>
+            </div>
+            <div class="message system" id="welcome-msg">
+                Loading agent info...
+            </div>
+            <div class="suggestions" id="suggestions"></div>
+        </div>
+
+        <div id="input-bar">
+            <input
+                id="chat-input"
+                type="text"
+                placeholder="Type a message..."
+                disabled
+            />
+            <button class="btn-primary" id="send-btn" disabled>Send</button>
+        </div>
+
+        <script type="module">
+            // -----------------------------------------------------------------------
+            // State
+            // -----------------------------------------------------------------------
+            let contextId = null;
+            let agentCard = null;
+            let activeStatus = null;
+
+            // x402 payment state (lazy-loaded)
+            let x402Client = null;
+            let wrapFetchWithPayment = null;
+            let evmWalletClient = null;
+            let phantomPublicKey = null;
+            let x402Loaded = false;
+            let x402Loading = false;
+
+            // -----------------------------------------------------------------------
+            // DOM references
+            // -----------------------------------------------------------------------
+            const $ = (id) => document.getElementById(id);
+            const agentNameEl = $("agent-name");
+            const agentVersionEl = $("agent-version");
+            const agentDescEl = $("agent-description");
+            const capsRowEl = $("capabilities-row");
+            const skillsListEl = $("skills-list");
+            const providerRowEl = $("provider-row");
+            const suggestionsEl = $("suggestions");
+            const heroEl = $("hero");
+            const heroNameEl = $("hero-name");
+            const heroDescEl = $("hero-desc");
+            const walletArea = $("wallet-area");
+            const walletInfoEl = $("wallet-info");
+            const phantomInfoEl = $("phantom-info");
+            const connectEvmBtn = $("connect-evm");
+            const disconnectEvmBtn = $("disconnect-evm");
+            const connectPhantomBtn = $("connect-phantom");
+            const disconnectPhantomBtn = $("disconnect-phantom");
+            const messagesDiv = $("messages");
+            const welcomeMsg = $("welcome-msg");
+            const chatInput = $("chat-input");
+            const sendBtn = $("send-btn");
+
+            // -----------------------------------------------------------------------
+            // Agent card fetch
+            // -----------------------------------------------------------------------
+            async function loadAgentCard() {
+                try {
+                    const res = await fetch("/.well-known/agent-card.json");
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    agentCard = await res.json();
+
+                    // Populate header
+                    agentNameEl.textContent = agentCard.name || "Agent";
+                    document.title = agentCard.name || "Agent";
+
+                    if (agentCard.version) {
+                        agentVersionEl.textContent = `v${agentCard.version}`;
+                        agentVersionEl.classList.remove("hidden");
+                    }
+
+                    // Hero section
+                    heroNameEl.textContent = agentCard.name || "Agent";
+                    heroDescEl.textContent = agentCard.description || "";
+
+                    // Description in info bar
+                    agentDescEl.textContent = agentCard.description || "";
+
+                    // Capabilities badges
+                    const caps = agentCard.capabilities || {};
+                    capsRowEl.innerHTML = "";
+                    if (caps.streaming) addBadge(capsRowEl, "streaming");
+                    if (caps.multiTurn) addBadge(capsRowEl, "multi-turn");
+                    if (caps.pushNotifications)
+                        addBadge(capsRowEl, "push notifications");
+
+                    // Skills (with tags as sub-categories)
+                    const skills = agentCard.skills || [];
+                    skillsListEl.innerHTML = "";
+                    const allTags = new Set();
+                    for (const skill of skills) {
+                        const tag = document.createElement("span");
+                        tag.className = "skill-tag";
+                        tag.textContent = skill.name;
+                        if (skill.description) tag.title = skill.description;
+                        skillsListEl.appendChild(tag);
+                        for (const t of skill.tags || []) allTags.add(t);
+                    }
+                    for (const t of allTags) {
+                        const cat = document.createElement("span");
+                        cat.className = "skill-tag-category";
+                        cat.textContent = t;
+                        skillsListEl.appendChild(cat);
+                    }
+
+                    // Provider attribution
+                    const provider = agentCard.provider;
+                    if (provider && provider.organization) {
+                        providerRowEl.classList.remove("hidden");
+                        if (provider.url) {
+                            providerRowEl.innerHTML = `by <a href="${escAttr(provider.url)}" target="_blank" rel="noopener">${esc(provider.organization)}</a>`;
+                        } else {
+                            providerRowEl.textContent = `by ${provider.organization}`;
+                        }
+                    }
+
+                    // Example prompts as conversation starters
+                    const examples = skills.flatMap((s) =>
+                        (s.examples || []).slice(0, 2),
+                    );
+                    suggestionsEl.innerHTML = "";
+                    for (const ex of examples.slice(0, 4)) {
+                        const btn = document.createElement("button");
+                        btn.className = "suggestion-btn";
+                        btn.textContent = ex;
+                        btn.addEventListener("click", () => {
+                            suggestionsEl.remove();
+                            sendMessage(ex);
+                        });
+                        suggestionsEl.appendChild(btn);
+                    }
+
+                    // Enable chat
+                    chatInput.disabled = false;
+                    sendBtn.disabled = false;
+                    chatInput.focus();
+                    welcomeMsg.textContent =
+                        "Send a message to start chatting.";
+
+                    // Check agent-registration.json for x402 support;
+                    // if enabled, load payment libraries eagerly so wallet
+                    // buttons are visible before the user sends a message.
+                    try {
+                        const regRes = await fetch("/agent-registration.json");
+                        if (regRes.ok) {
+                            const reg = await regRes.json();
+                            if (reg.x402Support) {
+                                await loadX402(reg.x402Networks);
+                                welcomeMsg.textContent =
+                                    "Connect a wallet, then send a message.";
+                            }
+                        }
+                    } catch {}
+                } catch (err) {
+                    welcomeMsg.textContent =
+                        "Could not load agent card. Is the agent running?";
+                    welcomeMsg.className = "message error";
+                }
+            }
+
+            function addBadge(container, label) {
+                const span = document.createElement("span");
+                span.className = "cap-badge";
+                span.textContent = label;
+                container.appendChild(span);
+            }
+
+            function esc(str) {
+                const d = document.createElement("div");
+                d.textContent = str;
+                return d.innerHTML;
+            }
+
+            function escAttr(str) {
+                return str
+                    .replace(/&/g, "&amp;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            }
+
+            // -----------------------------------------------------------------------
+            // Block explorer URLs by CAIP-2 network identifier
+            // -----------------------------------------------------------------------
+            const BLOCK_EXPLORERS = {
+                "eip155:1": "https://etherscan.io/tx/",
+                "eip155:11155111": "https://sepolia.etherscan.io/tx/",
+                "eip155:8453": "https://basescan.org/tx/",
+                "eip155:84532": "https://sepolia.basescan.org/tx/",
+                "eip155:42161": "https://arbiscan.io/tx/",
+                "eip155:421614": "https://sepolia.arbiscan.io/tx/",
+                "eip155:10": "https://optimistic.etherscan.io/tx/",
+                "eip155:11155420": "https://sepolia-optimism.etherscan.io/tx/",
+                "eip155:137": "https://polygonscan.com/tx/",
+                "eip155:80002": "https://amoy.polygonscan.com/tx/",
+                "solana:mainnet": "https://solscan.io/tx/",
+                "solana:devnet": "https://solscan.io/tx/?cluster=devnet",
+            };
+
+            // -----------------------------------------------------------------------
+            // Message display helpers
+            // -----------------------------------------------------------------------
+            function appendMessage(text, kind, payment) {
+                // Remove hero on first real message
+                if (heroEl.parentNode) heroEl.remove();
+
+                const div = document.createElement("div");
+                div.className = `message ${kind}`;
+                div.textContent = text;
+                if (payment?.transaction) {
+                    const explorerBase = BLOCK_EXPLORERS[payment.network];
+                    div.appendChild(document.createElement("br"));
+                    if (explorerBase) {
+                        const link = document.createElement("a");
+                        link.className = "payment-tag";
+                        link.href = explorerBase + payment.transaction;
+                        link.target = "_blank";
+                        link.rel = "noopener";
+                        link.textContent = `paid: ${payment.transaction}`;
+                        div.appendChild(link);
+                    } else {
+                        const tag = document.createElement("span");
+                        tag.className = "payment-tag";
+                        tag.textContent = `paid: ${payment.transaction}`;
+                        div.appendChild(tag);
+                    }
+                }
+                messagesDiv.appendChild(div);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+            function showStatus(text) {
+                const div = document.createElement("div");
+                div.className = "message status";
+                const dot = document.createElement("span");
+                dot.className = "status-dot";
+                div.appendChild(dot);
+                const span = document.createElement("span");
+                span.textContent = text;
+                div.appendChild(span);
+                messagesDiv.appendChild(div);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                return div;
+            }
+
+            function updateStatus(el, text) {
+                const span = el.querySelector("span:last-child");
+                if (span) span.textContent = text;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+            function removeStatus(el) {
+                el.remove();
+            }
+
+            // -----------------------------------------------------------------------
+            // x402 payment support (lazy-loaded from CDN)
+            // -----------------------------------------------------------------------
+            async function loadX402(networks) {
+                if (x402Loaded || x402Loading) return x402Loaded;
+                x402Loading = true;
+
+                // Determine which wallet families to show.
+                // If no networks array provided (lazy 402 fallback), show all.
+                const showEvm =
+                    !networks ||
+                    networks.length === 0 ||
+                    networks.includes("evm");
+                const showSolana =
+                    !networks ||
+                    networks.length === 0 ||
+                    networks.includes("solana");
+
+                try {
+                    const [fetchMod, evmMod] = await Promise.all([
+                        import("https://esm.sh/@x402/fetch@2?bundle"),
+                        import(
+                            "https://esm.sh/@x402/evm@2/exact/client?bundle"
+                        ),
+                    ]);
+
+                    wrapFetchWithPayment = fetchMod.wrapFetchWithPayment;
+                    const { x402Client: X402Client, registerExactEvmScheme } =
+                        fetchMod;
+                    const evmRegister = evmMod.registerExactEvmScheme;
+
+                    // Store references for wallet setup
+                    window.__x402 = {
+                        X402Client,
+                        registerExactEvmScheme: evmRegister,
+                        wrapFetchWithPayment,
+                    };
+                    x402Loaded = true;
+
+                    // Show only relevant wallet buttons
+                    walletArea.classList.remove("hidden");
+                    if (!showEvm) {
+                        connectEvmBtn.classList.add("hidden");
+                    }
+                    if (!showSolana) {
+                        connectPhantomBtn.classList.add("hidden");
+                    }
+                    appendMessage(
+                        "This agent requires payment. Connect a wallet to continue.",
+                        "system",
+                    );
+                } catch (err) {
+                    appendMessage(
+                        `Failed to load payment libraries: ${err.message}`,
+                        "error",
+                    );
+                } finally {
+                    x402Loading = false;
+                }
+                return x402Loaded;
+            }
+
+            // -----------------------------------------------------------------------
+            // Wallet: MetaMask (EVM)
+            // -----------------------------------------------------------------------
+            function hasAnyWallet() {
+                return evmWalletClient !== null || phantomPublicKey !== null;
+            }
+
+            // Current EVM chain ID (decimal), kept in sync with MetaMask
+            let evmChainId = null;
+
+            async function connectEvm() {
+                const ethereum = window.ethereum;
+                if (!ethereum) {
+                    appendMessage(
+                        "MetaMask not detected. Install it to continue.",
+                        "error",
+                    );
+                    return;
+                }
+                try {
+                    connectEvmBtn.disabled = true;
+                    const accounts = await ethereum.request({
+                        method: "eth_requestAccounts",
+                    });
+                    const address = accounts[0];
+
+                    // Read the currently selected chain
+                    const hexChainId = await ethereum.request({
+                        method: "eth_chainId",
+                    });
+                    evmChainId = parseInt(hexChainId, 16);
+
+                    // Dynamic import viem only when needed
+                    const viem = await import("https://esm.sh/viem@2?bundle");
+                    evmWalletClient = viem.createWalletClient({
+                        account: address,
+                        chain: { id: evmChainId },
+                        transport: viem.custom(ethereum),
+                    });
+
+                    const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                    walletInfoEl.textContent = short;
+                    connectEvmBtn.style.display = "none";
+                    disconnectEvmBtn.style.display = "inline-block";
+                    appendMessage(`EVM wallet connected: ${short}`, "system");
+                } catch (err) {
+                    appendMessage(
+                        `Connection failed: ${err.message || err}`,
+                        "error",
+                    );
+                } finally {
+                    connectEvmBtn.disabled = false;
+                }
+            }
+
+            function disconnectEvm() {
+                evmWalletClient = null;
+                evmChainId = null;
+                walletInfoEl.textContent = "";
+                connectEvmBtn.style.display = "inline-block";
+                disconnectEvmBtn.style.display = "none";
+                appendMessage("EVM wallet disconnected.", "system");
+            }
+
+            // -----------------------------------------------------------------------
+            // Wallet: Phantom (Solana)
+            // -----------------------------------------------------------------------
+            async function connectPhantom() {
+                const phantom = window.phantom?.solana;
+                if (!phantom?.isPhantom) {
+                    appendMessage(
+                        "Phantom not detected. Install it from phantom.app.",
+                        "error",
+                    );
+                    return;
+                }
+                try {
+                    connectPhantomBtn.disabled = true;
+                    const resp = await phantom.connect();
+                    phantomPublicKey = resp.publicKey.toBase58();
+                    const short = `${phantomPublicKey.slice(0, 4)}...${phantomPublicKey.slice(-4)}`;
+                    phantomInfoEl.textContent = short;
+                    connectPhantomBtn.style.display = "none";
+                    disconnectPhantomBtn.style.display = "inline-block";
+                    appendMessage(
+                        `Solana wallet connected: ${short}`,
+                        "system",
+                    );
+                } catch (err) {
+                    appendMessage(
+                        `Phantom connection failed: ${err.message || err}`,
+                        "error",
+                    );
+                } finally {
+                    connectPhantomBtn.disabled = false;
+                }
+            }
+
+            function disconnectPhantom() {
+                const phantom = window.phantom?.solana;
+                if (phantom)
+                    try {
+                        phantom.disconnect();
+                    } catch {}
+                phantomPublicKey = null;
+                phantomInfoEl.textContent = "";
+                connectPhantomBtn.style.display = "inline-block";
+                disconnectPhantomBtn.style.display = "none";
+                appendMessage("Solana wallet disconnected.", "system");
+            }
+
+            // -----------------------------------------------------------------------
+            // Build x402-wrapped fetch (when wallets are connected)
+            // -----------------------------------------------------------------------
+            function buildPaymentFetch() {
+                if (!x402Loaded || !window.__x402) return null;
+                if (!hasAnyWallet()) return null;
+
+                const {
+                    X402Client,
+                    registerExactEvmScheme,
+                    wrapFetchWithPayment,
+                } = window.__x402;
+
+                const client = new X402Client((_version, accepts) => {
+                    // 1. Try the currently selected MetaMask chain
+                    if (evmWalletClient && evmChainId) {
+                        const currentNet = `eip155:${evmChainId}`;
+                        const match = accepts.find(
+                            (a) => a.network === currentNet,
+                        );
+                        if (match) return match;
+                    }
+
+                    // 2. Try Solana
+                    if (phantomPublicKey) {
+                        const solMatch = accepts.find((a) =>
+                            a.network.startsWith("solana:"),
+                        );
+                        if (solMatch) return solMatch;
+                    }
+
+                    // 3. First available
+                    return accepts[0];
+                });
+
+                if (evmWalletClient) {
+                    const signer = {
+                        address: evmWalletClient.account.address,
+                        signTypedData: async (message) =>
+                            evmWalletClient.signTypedData({
+                                account: evmWalletClient.account,
+                                domain: message.domain,
+                                types: message.types,
+                                primaryType: message.primaryType,
+                                message: message.message,
+                            }),
+                    };
+                    registerExactEvmScheme(client, { signer });
+                }
+
+                // Create instrumented fetch that reports payment flow
+                let sawPaymentRequired = false;
+                const instrumented = async (input, init) => {
+                    const res = await fetch(input, init);
+                    if (res.status === 402 && !sawPaymentRequired) {
+                        sawPaymentRequired = true;
+                        if (activeStatus)
+                            updateStatus(
+                                activeStatus,
+                                "Agent requires payment. Signing...",
+                            );
+                        return res;
+                    }
+                    if (sawPaymentRequired) {
+                        sawPaymentRequired = false;
+                        if (activeStatus)
+                            updateStatus(
+                                activeStatus,
+                                "Payment sent. Waiting for response...",
+                            );
+                    }
+                    return res;
+                };
+
+                return wrapFetchWithPayment(instrumented, client);
+            }
+
+            // -----------------------------------------------------------------------
+            // SSE stream reader
+            // -----------------------------------------------------------------------
+            async function readSSEStream(res) {
+                const reader = res.body?.getReader();
+                if (!reader) return [];
+
+                const decoder = new TextDecoder();
+                const isTextPart = (p) =>
+                    p.kind === "text" || p.type === "text";
+                const agentTexts = [];
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const messages = buffer.split("\n\n");
+                    buffer = messages.pop() || "";
+
+                    for (const msg of messages) {
+                        const dataLines = msg
+                            .split("\n")
+                            .filter((line) => line.startsWith("data:"))
+                            .map((line) => line.slice(5).trim());
+
+                        if (dataLines.length === 0) continue;
+                        const jsonStr = dataLines.join("");
+                        if (!jsonStr) continue;
+
+                        let event;
+                        try {
+                            event = JSON.parse(jsonStr);
+                        } catch {
+                            continue;
+                        }
+
+                        if (event.error) {
+                            agentTexts.push(
+                                `Error: ${event.error.message || JSON.stringify(event.error)}`,
+                            );
+                            return agentTexts;
+                        }
+
+                        const result = event.result;
+                        if (!result) continue;
+
+                        if (result.contextId) contextId = result.contextId;
+                        if (result.context_id) contextId = result.context_id;
+
+                        if (
+                            result.status?.state === "working" &&
+                            activeStatus
+                        ) {
+                            updateStatus(activeStatus, "Agent is working...");
+                        }
+
+                        if (
+                            result.status?.state === "completed" &&
+                            result.status.message
+                        ) {
+                            const parts = result.status.message.parts || [];
+                            for (const p of parts) {
+                                if (isTextPart(p) && p.text)
+                                    agentTexts.push(p.text);
+                            }
+                        }
+
+                        if (result.history) {
+                            const texts = result.history
+                                .filter((m) => m.role === "agent")
+                                .flatMap((m) => m.parts)
+                                .filter(isTextPart)
+                                .map((p) => p.text);
+                            agentTexts.push(...texts);
+                        }
+
+                        if (result.artifact?.parts) {
+                            for (const p of result.artifact.parts) {
+                                if (isTextPart(p) && p.text)
+                                    agentTexts.push(p.text);
+                            }
+                        }
+                    }
+                }
+
+                return agentTexts;
+            }
+
+            // -----------------------------------------------------------------------
+            // Extract result from non-streaming JSON response
+            // -----------------------------------------------------------------------
+            function extractResult(result, payment) {
+                if (result?.contextId) contextId = result.contextId;
+                if (result?.context_id) contextId = result.context_id;
+
+                const isTextPart = (p) =>
+                    p.kind === "text" || p.type === "text";
+
+                const historyTexts = (result?.history ?? [])
+                    .filter((m) => m.role === "agent")
+                    .flatMap((m) => m.parts)
+                    .filter(isTextPart)
+                    .map((p) => p.text);
+
+                if (historyTexts.length > 0) {
+                    appendMessage(historyTexts.join("\n"), "agent", payment);
+                } else {
+                    const artifactTexts = (result?.artifacts ?? [])
+                        .flatMap((a) => a.parts)
+                        .filter(isTextPart)
+                        .map((p) => p.text);
+                    appendMessage(
+                        artifactTexts.join("\n") || "(no agent response)",
+                        artifactTexts.length > 0 ? "agent" : "system",
+                        payment,
+                    );
+                }
+            }
+
+            // -----------------------------------------------------------------------
+            // Send message
+            // -----------------------------------------------------------------------
+            async function sendMessage(text) {
+                // Remove suggestion buttons and hero on first message
+                if (suggestionsEl.parentNode) suggestionsEl.remove();
+                if (heroEl.parentNode) heroEl.remove();
+
+                appendMessage(text, "user");
+                chatInput.value = "";
+                chatInput.disabled = true;
+                sendBtn.disabled = true;
+
+                activeStatus = showStatus("Sending to agent...");
+
+                const rpcBody = {
+                    jsonrpc: "2.0",
+                    id: Date.now(),
+                    method: "message/stream",
+                    params: {
+                        message: {
+                            role: "user",
+                            parts: [{ type: "text", text }],
+                        },
+                    },
+                };
+                if (contextId) rpcBody.params.contextId = contextId;
+
+                // Use payment-wrapped fetch if available, otherwise plain fetch
+                const requestFetch = buildPaymentFetch() || fetch;
+
+                try {
+                    const res = await requestFetch(
+                        window.location.origin + "/",
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(rpcBody),
+                        },
+                    );
+
+                    // Detect x402 payment requirement
+                    if (res.status === 402) {
+                        removeStatus(activeStatus);
+                        if (!x402Loaded) {
+                            const loaded = await loadX402();
+                            if (loaded) {
+                                appendMessage(
+                                    "Payment libraries loaded. Connect a wallet, then resend your message.",
+                                    "system",
+                                );
+                            }
+                        } else if (!hasAnyWallet()) {
+                            appendMessage(
+                                "Connect a wallet to pay for this request.",
+                                "system",
+                            );
+                        } else {
+                            appendMessage(
+                                "Payment failed. Check your wallet and try again.",
+                                "error",
+                            );
+                        }
+                        chatInput.disabled = false;
+                        sendBtn.disabled = false;
+                        chatInput.focus();
+                        activeStatus = null;
+                        return;
+                    }
+
+                    // Extract payment info (transaction hash + network)
+                    const paymentResponse = res.headers.get("payment-response");
+                    let payment;
+                    if (paymentResponse) {
+                        try {
+                            payment = JSON.parse(atob(paymentResponse));
+                        } catch {}
+                    }
+
+                    if (!res.ok) {
+                        const body = await res.text();
+                        removeStatus(activeStatus);
+                        appendMessage(
+                            `HTTP ${res.status}: ${body.slice(0, 300)}`,
+                            "error",
+                        );
+                        return;
+                    }
+
+                    const contentType = res.headers.get("content-type") || "";
+
+                    if (contentType.includes("text/event-stream")) {
+                        updateStatus(activeStatus, "Agent is thinking...");
+                        const agentTexts = await readSSEStream(res);
+                        removeStatus(activeStatus);
+                        if (agentTexts.length > 0) {
+                            appendMessage(
+                                agentTexts.join("\n"),
+                                "agent",
+                                payment,
+                            );
+                        } else {
+                            appendMessage(
+                                "(no agent response)",
+                                "system",
+                                payment,
+                            );
+                        }
+                    } else {
+                        const data = await res.json();
+                        removeStatus(activeStatus);
+                        if (data.error) {
+                            appendMessage(
+                                `RPC error: ${data.error.message || JSON.stringify(data.error)}`,
+                                "error",
+                            );
+                            return;
+                        }
+                        extractResult(data.result, payment);
+                    }
+                } catch (err) {
+                    if (activeStatus) removeStatus(activeStatus);
+                    appendMessage(
+                        `Error: ${err.message || String(err)}`,
+                        "error",
+                    );
+                } finally {
+                    activeStatus = null;
+                    chatInput.disabled = false;
+                    sendBtn.disabled = false;
+                    chatInput.focus();
+                }
+            }
+
+            // -----------------------------------------------------------------------
+            // Event listeners
+            // -----------------------------------------------------------------------
+            connectEvmBtn.addEventListener("click", connectEvm);
+            disconnectEvmBtn.addEventListener("click", disconnectEvm);
+            connectPhantomBtn.addEventListener("click", connectPhantom);
+            disconnectPhantomBtn.addEventListener("click", disconnectPhantom);
+
+            sendBtn.addEventListener("click", () => {
+                const text = chatInput.value.trim();
+                if (text) sendMessage(text);
+            });
+
+            chatInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    const text = chatInput.value.trim();
+                    if (text) sendMessage(text);
+                }
+            });
+
+            // MetaMask account/chain changes
+            if (window.ethereum) {
+                window.ethereum.on("accountsChanged", () => {
+                    disconnectEvm();
+                    appendMessage(
+                        "Account changed. Please reconnect.",
+                        "system",
+                    );
+                });
+                window.ethereum.on("chainChanged", (hexId) => {
+                    if (!evmWalletClient) return;
+                    evmChainId = parseInt(hexId, 16);
+                    if (evmWalletClient) {
+                        evmWalletClient = Object.assign(evmWalletClient, {
+                            chain: { id: evmChainId },
+                        });
+                    }
+                    appendMessage(`Switched to chain ${evmChainId}.`, "system");
+                });
+            }
+
+            // Phantom events
+            const phantomProvider = window.phantom?.solana;
+            if (phantomProvider) {
+                phantomProvider.on("disconnect", () => {
+                    disconnectPhantom();
+                });
+                phantomProvider.on("accountChanged", (pk) => {
+                    if (pk) {
+                        phantomPublicKey = pk.toBase58();
+                        const short = `${phantomPublicKey.slice(0, 4)}...${phantomPublicKey.slice(-4)}`;
+                        phantomInfoEl.textContent = short;
+                        appendMessage("Phantom account changed.", "system");
+                    } else {
+                        disconnectPhantom();
+                    }
+                });
+            }
+
+            // -----------------------------------------------------------------------
+            // Initialize
+            // -----------------------------------------------------------------------
+            loadAgentCard();
+        </script>
+    </body>
+</html>

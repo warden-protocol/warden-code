@@ -68,6 +68,38 @@ export function processTemplate(content: string, config: AgentConfig): string {
     ? `import { getPaymentConfig, createPaymentApp } from "./payments.js";`
     : "";
 
+  // Shared block: create a custom HTTP server that serves static files
+  // from public/ and delegates everything else to the A2A/LangGraph handlers.
+  const listenBlock = `const a2aHandler = server.getA2AServer().getHandler();
+const langGraphHandler = server.getLangGraphServer().getHandler();
+
+const httpServer = createServer((req, res) => {
+  if (serveStatic(req, res)) return;
+  const url = req.url || "/";
+  const isLangGraph = url.startsWith("/info") || url.startsWith("/ok")
+    || url.startsWith("/assistants") || url.startsWith("/threads")
+    || url.startsWith("/runs") || url.startsWith("/store");
+  const handler = isLangGraph ? langGraphHandler : a2aHandler;
+  handler(req, res);
+});
+
+httpServer.listen(PORT, () => {
+  {{model_startup_log}}
+  console.log(\`{{name}} (Dual Protocol)\`);
+  console.log(\`Server: \${AGENT_URL}\`);
+  console.log(\`Frontend: \${AGENT_URL}/\`);
+  console.log();
+  console.log("A2A Protocol:");
+  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
+  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
+  console.log();
+  console.log("LangGraph Protocol:");
+  console.log(\`  Info:       \${AGENT_URL}/info\`);
+  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
+  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
+  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
+});`;
+
   const x402Listen = hasX402
     ? `const paymentConfig = getPaymentConfig();
 
@@ -83,6 +115,7 @@ if (paymentConfig) {
     {{model_startup_log}}
     console.log(\`{{name}} (Dual Protocol + x402 Payments)\`);
     console.log(\`Server: \${AGENT_URL}\`);
+    console.log(\`Frontend: \${AGENT_URL}/\`);
     console.log();
     console.log("x402 Payments:");
     console.log(\`  Facilitator: \${paymentConfig.facilitatorUrl}\`);
@@ -104,37 +137,9 @@ if (paymentConfig) {
     console.log(\`  Runs:       \${AGENT_URL}/runs\`);
   });
 } else {
-  server.listen(PORT).then(() => {
-    {{model_startup_log}}
-    console.log(\`{{name}} (Dual Protocol)\`);
-    console.log(\`Server: \${AGENT_URL}\`);
-    console.log();
-    console.log("A2A Protocol:");
-    console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
-    console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
-    console.log();
-    console.log("LangGraph Protocol:");
-    console.log(\`  Info:       \${AGENT_URL}/info\`);
-    console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
-    console.log(\`  Threads:    \${AGENT_URL}/threads\`);
-    console.log(\`  Runs:       \${AGENT_URL}/runs\`);
-  });
+  ${listenBlock}
 }`
-    : `server.listen(PORT).then(() => {
-  {{model_startup_log}}
-  console.log(\`{{name}} (Dual Protocol)\`);
-  console.log(\`Server: \${AGENT_URL}\`);
-  console.log();
-  console.log("A2A Protocol:");
-  console.log(\`  Agent Card: \${AGENT_URL}/.well-known/agent-card.json\`);
-  console.log(\`  JSON-RPC:   POST \${AGENT_URL}/\`);
-  console.log();
-  console.log("LangGraph Protocol:");
-  console.log(\`  Info:       \${AGENT_URL}/info\`);
-  console.log(\`  Assistants: \${AGENT_URL}/assistants\`);
-  console.log(\`  Threads:    \${AGENT_URL}/threads\`);
-  console.log(\`  Runs:       \${AGENT_URL}/runs\`);
-});`;
+    : listenBlock;
 
   const x402Dependencies = hasX402
     ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}${hasSvm ? `,\n    "@x402/svm": "^2.3.0"` : ""}`
@@ -246,6 +251,11 @@ if (paymentConfig) {
       String(config.capabilities.multiTurn),
     )
     .replace(/\{\{model_startup_log\}\}/g, modelStartupLog)
+    .replace(/\{\{x402_support\}\}/g, String(hasX402))
+    .replace(
+      /\{\{x402_networks\}\}/g,
+      JSON.stringify([hasEvm && "evm", hasSvm && "solana"].filter(Boolean)),
+    )
     .replace(/\{\{packageName\}\}/g, config.packageName)
     .replace(
       /\{\{model_dependencies\}\}/g,
@@ -285,6 +295,7 @@ export function buildPaymentsModule(config: AgentConfig): string | null {
   const hasSvm = accepts.some((a) => a.network.startsWith("solana:"));
 
   const imports = [
+    `import { resolve } from "node:path";`,
     `import express from "express";`,
     `import type { Express, RequestHandler } from "express";`,
     `import { paymentMiddleware, x402ResourceServer } from "@x402/express";`,
@@ -362,6 +373,9 @@ export function createPaymentApp(
 ${hasEvm ? `  if (hasEvm) registerExactEvmScheme(resourceServer);\n` : ""}${hasSvm ? `  if (hasSvm) registerExactSvmScheme(resourceServer);\n` : ""}
   const app = express();
 
+  // Serve static files from public/ (before CORS/payment middleware)
+  app.use(express.static(resolve(import.meta.dirname, "../public")));
+
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -430,7 +444,10 @@ export async function scaffoldAgent(
   const agentCardContent = processTemplate(agentCardTemplate, config);
 
   // Write the agent and server files
-  await writeFile(path.join(targetDir, "agent-card.json"), agentCardContent);
+  await writeFile(
+    path.join(targetDir, "public", ".well-known", "agent-card.json"),
+    agentCardContent,
+  );
   await writeFile(path.join(targetDir, "src", "agent.ts"), agentContent);
   await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
 
@@ -460,6 +477,24 @@ export async function scaffoldAgent(
   const envTemplate = await readSharedTemplate("env.example.template");
   const envContent = processTemplate(envTemplate, config);
   await writeFile(path.join(targetDir, ".env.example"), envContent);
+
+  // Write front-end
+  const frontendHtml = await readSharedTemplate("frontend.html");
+  await writeFile(path.join(targetDir, "public", "index.html"), frontendHtml);
+
+  // Write agent registration (ERC-8004)
+  const regTemplate = await readSharedTemplate(
+    "agent-registration.json.template",
+  );
+  const regContent = processTemplate(regTemplate, config);
+  await writeFile(
+    path.join(targetDir, "public", ".well-known", "agent-registration.json"),
+    regContent,
+  );
+  await writeFile(
+    path.join(targetDir, "public", "agent-registration.json"),
+    regContent,
+  );
 
   // Write Dockerfile
   const dockerfile = await readSharedTemplate("Dockerfile.template");

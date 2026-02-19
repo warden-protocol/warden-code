@@ -15,7 +15,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && cp -r src/templates dist/",
+    "build": "tsc && cp -r src/templates dist/ && cp src/frontend/index.html dist/templates/frontend.html",
     "dev": "tsc --watch",
     "cli": "node dist/cli/index.js",
     "clean": "rm -rf dist",
