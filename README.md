@@ -181,6 +181,16 @@ X402_BASE_SEPOLIA_NETWORK=eip155:84532
 
 To disable a network, remove its `PAY_TO` value. To disable payments entirely, remove all `PAY_TO` values. All available networks are listed in `.env.example` (active ones uncommented, others commented out for easy enabling).
 
+### Testing without payments
+
+To test an x402 agent locally with `/chat`, start it with payments disabled:
+
+```bash
+X402=false npm start
+```
+
+This skips the payment middleware for that process only. Your `.env` stays untouched and payments resume on the next normal start. The `/chat` command will suggest this flag automatically when it encounters a 402 response.
+
 ### Networks
 
 | Network | ID | Pay-to format |

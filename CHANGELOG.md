@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.11.1 (2026-02-20)
+
+### Fixes
+
+- `/chat` now shows actionable guidance when an agent returns HTTP 402 (payment required), directing the user to restart with `X402=false`
+- Generated x402 agents support `X402=false` runtime flag to bypass payment middleware for local testing without modifying `.env`
+
 ## 1.11.0 (2026-02-20)
 
 ### Features
