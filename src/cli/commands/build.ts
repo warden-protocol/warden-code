@@ -250,7 +250,7 @@ export const buildCommand: SlashCommand = {
     console.log(
       chalk.dim(
         "Describe what you want your agent to do and the AI will edit your code.\n" +
-          "Type /model to switch AI, /chat to talk to your agent, or /exit to leave.\n",
+          "Commands: /model, /rebuild, /chat, /exit\n",
       ),
     );
 
@@ -279,11 +279,12 @@ export const buildCommand: SlashCommand = {
       new Promise((resolve, reject) => {
         const onClose = () => reject(new Error("closed"));
         rl.once("close", onClose);
-        // Clear readline's internal line buffer so stale text from
-        // prior input (confused by ora's ANSI writes) never leaks
-        // into the new prompt.
+        // Clear both the visual terminal line and readline's internal
+        // buffer so stale text from prior input (confused by ora's
+        // ANSI writes or paste remnants) never leaks into the prompt.
         readline.clearLine(process.stdout, 0);
         readline.cursorTo(process.stdout, 0);
+        (rl as unknown as { line: string }).line = "";
         rl.question(prompt, (answer) => {
           rl.removeListener("close", onClose);
           resolve(answer);
@@ -333,6 +334,14 @@ export const buildCommand: SlashCommand = {
           }
         }
         rl = createRl();
+        continue;
+      }
+
+      // ── /rebuild sub-command ────────────────────────────────
+      if (trimmed === "/rebuild") {
+        console.log();
+        await rebuildProject(projectDir, ["package.json"]);
+        console.log();
         continue;
       }
 
