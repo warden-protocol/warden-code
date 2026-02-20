@@ -97,8 +97,8 @@ export const newCommand: SlashCommand = {
         theme: promptTheme,
       });
 
-      const template = await select({
-        message: "Select a template:",
+      const provider = await select({
+        message: "Select a provider:",
         choices: [
           {
             value: "echo" as const,
@@ -117,7 +117,7 @@ export const newCommand: SlashCommand = {
       });
 
       let openaiApiKey: string | undefined;
-      if (template === "openai") {
+      if (provider === "openai") {
         openaiApiKey = await password({
           message: "Enter your OpenAI API key:",
           theme: promptTheme,
@@ -283,7 +283,7 @@ export const newCommand: SlashCommand = {
         name,
         packageName,
         description,
-        template,
+        provider,
         capabilities: {
           streaming: capability === "streaming",
           multiTurn: capability === "multiTurn",
@@ -304,7 +304,7 @@ export const newCommand: SlashCommand = {
         `  Description:  ${chalk.rgb(199, 255, 142)(config.description)}`,
       );
       console.log(
-        `  Template:     ${chalk.rgb(199, 255, 142)(config.template)}`,
+        `  Provider:     ${chalk.rgb(199, 255, 142)(config.provider)}`,
       );
       console.log(
         `  Streaming:    ${config.capabilities.streaming ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
@@ -325,7 +325,7 @@ export const newCommand: SlashCommand = {
           );
         }
       } else {
-        console.log(`  x402:         ${chalk.dim("Disabled")}`);
+        console.log(`  x402:         ${chalk.dim("Not configured (enable via /config)")}`);
       }
       console.log(chalk.dim("─".repeat(40)));
       console.log();

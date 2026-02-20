@@ -29,7 +29,7 @@ export interface AgentConfig {
   /** npm package name (e.g., "my-cool-agent") */
   packageName: string;
   description: string;
-  template: "echo" | "openai";
+  provider: "echo" | "openai";
   capabilities: {
     streaming: boolean;
     multiTurn: boolean;
