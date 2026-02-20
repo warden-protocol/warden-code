@@ -105,9 +105,9 @@ const MODEL_CHOICES = {
       description: "Enter a model name manually",
     },
   ],
-} as const;;
+} as const;
 
-async function setupWizard(): Promise<BuildConfig> {
+async function setupWizard(currentConfig?: BuildConfig | null): Promise<BuildConfig> {
   console.log();
   console.log(chalk.bold("Build Mode Setup"));
   console.log(
@@ -148,10 +148,16 @@ async function setupWizard(): Promise<BuildConfig> {
     });
   }
 
-  const apiKey = await password({
-    message: `Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key:`,
-    theme: promptTheme,
-  });
+  // Reuse existing API key when the provider hasn't changed
+  let apiKey: string;
+  if (currentConfig && currentConfig.provider === provider) {
+    apiKey = currentConfig.apiKey;
+  } else {
+    apiKey = await password({
+      message: `Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key:`,
+      theme: promptTheme,
+    });
+  }
 
   const config: BuildConfig = { provider, model, apiKey };
   await writeConfig(config);
@@ -311,7 +317,7 @@ export const buildCommand: SlashCommand = {
       if (trimmed === "/model") {
         rl.close();
         try {
-          config = await setupWizard();
+          config = await setupWizard(config);
           provider = createProvider(config);
           messages.length = 0;
           console.log();
