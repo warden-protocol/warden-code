@@ -220,7 +220,7 @@ When x402 is enabled, the following packages are added to the generated agent:
 
 Run `/build` inside a scaffolded project to enter an AI-powered chat session. Describe the changes you want and the LLM will modify your agent code directly. Responses stream token-by-token with real-time display.
 
-On first run, the wizard prompts for an AI provider (OpenAI or Anthropic), model, and API key. This configuration is stored in `~/.warden/config.json` and shared across all agent projects. Type `/model` at any time to switch provider or model without leaving the session.
+On first run, the wizard prompts for an AI provider (OpenAI or Anthropic), model, and API key. This configuration is stored in `~/.warden/config.json` and shared across all agent projects. You can configure multiple providers and their API keys are remembered, so switching between them is instant. Type `/model` at any time to switch provider or model without leaving the session. Press Escape to go back during the selection flow. Switching models within the same provider preserves your conversation history.
 
 After the AI applies code changes, the project is automatically rebuilt (`npm run build`). If `package.json` was modified, `npm install` runs first. When the build fails, the error output is fed back to the AI for automatic correction (up to 2 retries). The coding agent receives the installed `@wardenprotocol/agent-kit` type definitions as context, so it works with actual APIs rather than guessing.
 
