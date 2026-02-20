@@ -4,13 +4,19 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { promisify } from "node:util";
 import { select, password, input } from "@inquirer/prompts";
+import { CancelPromptError } from "@inquirer/core";
 import chalk from "chalk";
 import ora from "ora";
 import type { SlashCommand, CliContext } from "../types.js";
 import {
-  readConfig,
+  readMultiConfig,
   writeConfig,
+  toBuildConfig,
+  parseActive,
+  updateProvider,
   type BuildConfig,
+  type MultiProviderConfig,
+  type ProviderName,
 } from "../services/config.js";
 import {
   createProvider,
@@ -35,6 +41,27 @@ const promptTheme = {
     description: (text: string) => chalk.rgb(199, 255, 142)(text),
   },
 };
+
+const escTheme = {
+  ...promptTheme,
+  style: {
+    ...promptTheme.style,
+    keysHelpTip: (keys: [string, string][]) => {
+      const all = [...keys, ["esc", "back"]];
+      return chalk.dim(
+        all.map(([key, action]) => `${key} ${action}`).join(" \u2022 "),
+      );
+    },
+  },
+};
+
+function withEscape<T>(prompt: Promise<T> & { cancel: () => void }): Promise<T> {
+  const onKeypress = (_ch: string, key: { name?: string }) => {
+    if (key?.name === "escape") prompt.cancel();
+  };
+  process.stdin.on("keypress", onKeypress);
+  return prompt.finally(() => process.stdin.removeListener("keypress", onKeypress));
+}
 
 async function projectExists(cwd: string): Promise<boolean> {
   try {
@@ -96,7 +123,15 @@ const MODEL_CHOICES = {
   ],
 } as const;
 
-async function setupWizard(currentConfig?: BuildConfig | null): Promise<BuildConfig> {
+interface SetupResult {
+  multi: MultiProviderConfig;
+  config: BuildConfig;
+  providerChanged: boolean;
+}
+
+async function setupWizard(
+  currentMulti?: MultiProviderConfig | null,
+): Promise<SetupResult> {
   console.log();
   console.log(chalk.bold("Build Mode Setup"));
   console.log(
@@ -106,51 +141,118 @@ async function setupWizard(currentConfig?: BuildConfig | null): Promise<BuildCon
     ),
   );
 
-  const provider = await select({
-    message: "Select AI provider:",
-    choices: [
-      {
-        value: "openai" as const,
-        name: "OpenAI",
-        description: "GPT-5.2 Codex",
-      },
-      {
-        value: "anthropic" as const,
-        name: "Anthropic",
-        description: "Claude Opus 4.6, Claude Sonnet 4.5",
-      },
-    ],
-    theme: promptTheme,
-  });
+  const currentProvider = currentMulti
+    ? parseActive(currentMulti.active).provider
+    : undefined;
 
-  let model: string = await select({
-    message: "Select model:",
-    choices: MODEL_CHOICES[provider].map((c) => ({ ...c })),
-    theme: promptTheme,
-  });
+  const providerLabel = (name: string, key: ProviderName): string => {
+    if (key === currentProvider) return `${name} (current)`;
+    if (currentMulti?.providers?.[key]) return `${name} (configured)`;
+    return name;
+  };
 
-  if (model === "custom") {
-    model = await input({
-      message: "Enter model name:",
-      validate: (value) => (value.trim() ? true : "Model name is required"),
-      theme: promptTheme,
-    });
+  const isCancelError = (err: unknown): boolean =>
+    err instanceof Error && err.name === "CancelPromptError";
+
+  // Outer loop: Escape at provider step exits the wizard,
+  // Escape at later steps returns to provider selection.
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // Step 1: Provider (Escape here exits the wizard)
+    const provider = await withEscape(
+      select({
+        message: "Select AI provider:",
+        choices: [
+          {
+            value: "openai" as ProviderName,
+            name: providerLabel("OpenAI", "openai"),
+            description: "GPT-5.2 Codex",
+          },
+          {
+            value: "anthropic" as ProviderName,
+            name: providerLabel("Anthropic", "anthropic"),
+            description: "Claude Opus 4.6, Claude Sonnet 4.5",
+          },
+        ],
+        default: currentProvider,
+        theme: escTheme,
+      }),
+    );
+
+    // Step 2: API key (only if provider not yet configured)
+    const existing = currentMulti?.providers?.[provider];
+    let apiKey: string;
+    if (existing?.apiKey) {
+      apiKey = existing.apiKey;
+    } else {
+      try {
+        apiKey = await withEscape(
+          password({
+            message: `Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key:`,
+            theme: escTheme,
+          }),
+        );
+      } catch (err) {
+        if (isCancelError(err)) continue; // back to provider
+        throw err;
+      }
+    }
+
+    // Step 3: Model
+    const lastModel = existing?.model;
+    const isActiveProvider = provider === currentProvider;
+    const modelChoices = MODEL_CHOICES[provider].map((c) => ({
+      ...c,
+      name:
+        c.value !== "custom" && c.value === lastModel
+          ? `${c.name} (${isActiveProvider ? "current" : "configured"})`
+          : c.name,
+    }));
+
+    let model: string;
+    try {
+      model = await withEscape(
+        select({
+          message: "Select model:",
+          choices: modelChoices,
+          default: lastModel,
+          theme: escTheme,
+        }),
+      );
+    } catch (err) {
+      if (isCancelError(err)) continue; // back to provider
+      throw err;
+    }
+
+    if (model === "custom") {
+      try {
+        model = await withEscape(
+          input({
+            message: "Enter model name:",
+            validate: (value) =>
+              value.trim() ? true : "Model name is required",
+            theme: escTheme,
+          }),
+        );
+      } catch (err) {
+        if (isCancelError(err)) continue; // back to provider
+        throw err;
+      }
+    }
+
+    // Step 4: Persist
+    const base: MultiProviderConfig = currentMulti ?? {
+      active: "",
+      providers: {},
+    };
+    const multi = updateProvider(base, provider, model, apiKey);
+    await writeConfig(multi);
+
+    const providerChanged =
+      currentProvider !== undefined && currentProvider !== provider;
+
+    return { multi, config: toBuildConfig(multi)!, providerChanged };
   }
-
-  // Reuse existing API key when the provider hasn't changed
-  let apiKey: string;
-  if (currentConfig && currentConfig.provider === provider) {
-    apiKey = currentConfig.apiKey;
-  } else {
-    apiKey = await password({
-      message: `Enter your ${provider === "openai" ? "OpenAI" : "Anthropic"} API key:`,
-      theme: promptTheme,
-    });
-  }
-
-  const config: BuildConfig = { provider, model, apiKey };
-  await writeConfig(config);
-  return config;
 }
 
 function chatPrompt(): string {
@@ -215,14 +317,21 @@ export const buildCommand: SlashCommand = {
     }
 
     // Get or create config
-    let config = await readConfig();
+    let multi = await readMultiConfig();
+    let config = multi ? toBuildConfig(multi) : null;
     if (!config) {
       try {
-        config = await setupWizard();
+        const result = await setupWizard();
+        multi = result.multi;
+        config = result.config;
         console.log();
         context.log.success("Configuration saved to ~/.warden/config.json");
       } catch (error) {
-        if (error instanceof Error && error.name === "ExitPromptError") {
+        if (
+          error instanceof Error &&
+          (error.name === "ExitPromptError" ||
+            error.name === "CancelPromptError")
+        ) {
           console.log();
           context.log.dim("Cancelled.");
           return;
@@ -307,14 +416,22 @@ export const buildCommand: SlashCommand = {
       if (trimmed === "/model") {
         rl.close();
         try {
-          config = await setupWizard(config);
+          const result = await setupWizard(multi);
+          multi = result.multi;
+          config = result.config;
           provider = createProvider(config);
-          messages.length = 0;
+          if (result.providerChanged) {
+            messages.length = 0;
+          }
           console.log();
           context.log.success(`Switched to ${config.model}`);
           console.log();
         } catch (error) {
-          if (error instanceof Error && error.name === "ExitPromptError") {
+          if (
+            error instanceof Error &&
+            (error.name === "ExitPromptError" ||
+              error.name === "CancelPromptError")
+          ) {
             console.log();
             context.log.dim("Cancelled.");
             console.log();
