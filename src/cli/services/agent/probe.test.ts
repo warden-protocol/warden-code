@@ -40,7 +40,7 @@ describe("probeAgent", () => {
           return jsonResponse({
             name: "Test Agent",
             description: "A test agent",
-            capabilities: { streaming: true, multiTurn: false },
+            capabilities: { streaming: true },
             skills: [{ id: "s1", name: "Skill One" }],
           });
         }

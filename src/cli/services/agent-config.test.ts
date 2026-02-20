@@ -150,14 +150,9 @@ describe("readProjectConfig", () => {
     }
 
     if (opts?.reg) {
-      const regJson = JSON.stringify(opts.reg);
       await fs.writeFile(
         path.join(testDir, "public", ".well-known", "agent-registration.json"),
-        regJson,
-      );
-      await fs.writeFile(
-        path.join(testDir, "public", "agent-registration.json"),
-        regJson,
+        JSON.stringify(opts.reg),
       );
     }
   }
@@ -393,15 +388,10 @@ describe("writeIdentityConfig", () => {
     expect(card.version).toBe("1.0.0");
   });
 
-  it("should update both agent-registration.json files", async () => {
-    const regJson = JSON.stringify({ name: "Old", description: "Old" });
+  it("should update agent-registration.json", async () => {
     await fs.writeFile(
       path.join(testDir, "public", ".well-known", "agent-registration.json"),
-      regJson,
-    );
-    await fs.writeFile(
-      path.join(testDir, "public", "agent-registration.json"),
-      regJson,
+      JSON.stringify({ name: "Old", description: "Old" }),
     );
 
     await writeIdentityConfig(testDir, {
@@ -411,22 +401,14 @@ describe("writeIdentityConfig", () => {
       version: "0.1.0",
     });
 
-    const reg1 = JSON.parse(
+    const reg = JSON.parse(
       await fs.readFile(
         path.join(testDir, "public", ".well-known", "agent-registration.json"),
         "utf-8",
       ),
     );
-    const reg2 = JSON.parse(
-      await fs.readFile(
-        path.join(testDir, "public", "agent-registration.json"),
-        "utf-8",
-      ),
-    );
-    expect(reg1.name).toBe("Updated");
-    expect(reg1.description).toBe("Updated desc");
-    expect(reg2.name).toBe("Updated");
-    expect(reg2.description).toBe("Updated desc");
+    expect(reg.name).toBe("Updated");
+    expect(reg.description).toBe("Updated desc");
   });
 
   it("should preserve existing fields in agent-card.json", async () => {
@@ -565,14 +547,9 @@ describe("writePaymentConfig", () => {
       path.join(testDir, ".env"),
       "HOST=localhost\nPORT=3000\n",
     );
-    const regJson = JSON.stringify({ x402Support: false, x402Networks: [] });
     await fs.writeFile(
       path.join(testDir, "public", ".well-known", "agent-registration.json"),
-      regJson,
-    );
-    await fs.writeFile(
-      path.join(testDir, "public", "agent-registration.json"),
-      regJson,
+      JSON.stringify({ x402Support: false, x402Networks: [] }),
     );
 
     await writePaymentConfig(testDir, {
@@ -608,14 +585,9 @@ describe("writePaymentConfig", () => {
         "X402_BASE_SEPOLIA_NETWORK=eip155:84532",
       ].join("\n"),
     );
-    const regJson = JSON.stringify({ x402Support: true, x402Networks: ["evm"] });
     await fs.writeFile(
       path.join(testDir, "public", ".well-known", "agent-registration.json"),
-      regJson,
-    );
-    await fs.writeFile(
-      path.join(testDir, "public", "agent-registration.json"),
-      regJson,
+      JSON.stringify({ x402Support: true, x402Networks: ["evm"] }),
     );
 
     await writePaymentConfig(testDir, {
@@ -633,16 +605,11 @@ describe("writePaymentConfig", () => {
     expect(env).not.toContain("X402_BASE_SEPOLIA_NETWORK");
   });
 
-  it("should update registration JSON files", async () => {
+  it("should update registration JSON file", async () => {
     await fs.writeFile(path.join(testDir, ".env"), "");
-    const regJson = JSON.stringify({ x402Support: false, x402Networks: [] });
     await fs.writeFile(
       path.join(testDir, "public", ".well-known", "agent-registration.json"),
-      regJson,
-    );
-    await fs.writeFile(
-      path.join(testDir, "public", "agent-registration.json"),
-      regJson,
+      JSON.stringify({ x402Support: false, x402Networks: [] }),
     );
 
     await writePaymentConfig(testDir, {
@@ -660,21 +627,13 @@ describe("writePaymentConfig", () => {
       x402Networks: ["evm"],
     });
 
-    const reg1 = JSON.parse(
+    const reg = JSON.parse(
       await fs.readFile(
         path.join(testDir, "public", ".well-known", "agent-registration.json"),
         "utf-8",
       ),
     );
-    const reg2 = JSON.parse(
-      await fs.readFile(
-        path.join(testDir, "public", "agent-registration.json"),
-        "utf-8",
-      ),
-    );
-    expect(reg1.x402Support).toBe(true);
-    expect(reg1.x402Networks).toEqual(["evm"]);
-    expect(reg2.x402Support).toBe(true);
-    expect(reg2.x402Networks).toEqual(["evm"]);
+    expect(reg.x402Support).toBe(true);
+    expect(reg.x402Networks).toEqual(["evm"]);
   });
 });

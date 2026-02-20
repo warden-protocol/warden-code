@@ -16,7 +16,6 @@ function createMockConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     provider: "echo",
     capabilities: {
       streaming: false,
-      multiTurn: true,
     },
     skills: [],
     ...overrides,
@@ -235,7 +234,7 @@ describe("processTemplate", () => {
     it("should replace {{capabilities_streaming}} with true", () => {
       const content = "streaming: {{capabilities_streaming}}";
       const config = createMockConfig({
-        capabilities: { streaming: true, multiTurn: false },
+        capabilities: { streaming: true },
       });
 
       const result = processTemplate(content, config);
@@ -246,34 +245,63 @@ describe("processTemplate", () => {
     it("should replace {{capabilities_streaming}} with false", () => {
       const content = "streaming: {{capabilities_streaming}}";
       const config = createMockConfig({
-        capabilities: { streaming: false, multiTurn: true },
+        capabilities: { streaming: false },
       });
 
       const result = processTemplate(content, config);
 
       expect(result).toBe("streaming: false");
     });
+  });
 
-    it("should replace {{capabilities_multiturn}} with true", () => {
-      const content = "multiTurn: {{capabilities_multiturn}}";
+  describe("services_json replacement", () => {
+    it("should produce A2A, Web, and OASF services when skills have tags", () => {
+      const content = "[{{services_json}}]";
       const config = createMockConfig({
-        capabilities: { streaming: false, multiTurn: true },
+        skills: [
+          { id: "summarize", name: "Summarize", description: "Summarize text into key points" },
+        ],
       });
 
-      const result = processTemplate(content, config);
+      const result = JSON.parse(processTemplate(content, config));
 
-      expect(result).toBe("multiTurn: true");
+      expect(result).toHaveLength(3);
+      expect(result[0].name).toBe("A2A");
+      expect(result[0].version).toBe("0.3.0");
+      expect(result[0].a2aSkills.length).toBeGreaterThan(0);
+      expect(result[1].name).toBe("Web");
+      expect(result[2].name).toBe("OASF");
+      expect(result[2].version).toBe("v0.8.0");
+      expect(result[2].skills).toEqual(result[0].a2aSkills);
     });
 
-    it("should replace {{capabilities_multiturn}} with false", () => {
-      const content = "multiTurn: {{capabilities_multiturn}}";
+    it("should omit OASF service and a2aSkills when no skills defined", () => {
+      const content = "[{{services_json}}]";
+      const config = createMockConfig({ skills: [] });
+
+      const result = JSON.parse(processTemplate(content, config));
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe("A2A");
+      expect(result[0].a2aSkills).toBeUndefined();
+      expect(result[1].name).toBe("Web");
+    });
+
+    it("should deduplicate OASF paths across multiple skills", () => {
+      const content = "[{{services_json}}]";
       const config = createMockConfig({
-        capabilities: { streaming: true, multiTurn: false },
+        skills: [
+          { id: "s1", name: "Summarize", description: "Summarize text" },
+          { id: "s2", name: "Generate summaries", description: "Create text summaries" },
+        ],
       });
 
-      const result = processTemplate(content, config);
-
-      expect(result).toBe("multiTurn: false");
+      const result = JSON.parse(processTemplate(content, config));
+      const oasfService = result.find((s: { name: string }) => s.name === "OASF");
+      if (oasfService) {
+        const unique = new Set(oasfService.skills);
+        expect(oasfService.skills.length).toBe(unique.size);
+      }
     });
   });
 
