@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.9.3 (2026-02-20)
+
+### Features
+
+- OpenAI Codex model support: `OpenAIProvider` detects Codex models and routes them through the Responses API (separate `instructions` parameter, `response.output_text.delta` streaming events) while non-Codex models continue using Chat Completions
+- Codex-first model selection: OpenAI provider defaults to GPT-5.2 Codex in the model picker; other models (o3, gpt-4.1, o4-mini) remain accessible via "Other"
+
 ## 1.9.2 (2026-02-20)
 
 ### Features
