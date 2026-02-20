@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.9.1 (2026-02-20)
+
+### Fixes
+
+- `/model` command reuses the stored API key when switching models within the same provider instead of re-prompting
+- Fixed OpenAI model choices using Codex models (Responses API only) instead of Chat Completions-compatible models (o3, GPT-4.1, o4-mini)
+
 ## 1.9.0 (2026-02-20)
 
 ### Features
@@ -19,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Fixed readline prompt showing stale text after spinner animations in `/build` mode
 - Fixed generated README template using `npm run agent` instead of `npm start`
-- Fixed OpenAI model choices using Codex models (Responses API only) instead of Chat Completions-compatible models (o3, GPT-4.1, o4-mini)
 
 ## 1.8.0 (2026-02-20)
 
