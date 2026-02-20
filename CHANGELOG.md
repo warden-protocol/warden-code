@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.10.1 (2026-02-20)
+
+### Fixes
+
+- `/config` server editor now suggests `http://<host>:<port>` as the Agent URL default when host or port changes
+
 ## 1.10.0 (2026-02-20)
 
 ### Features
