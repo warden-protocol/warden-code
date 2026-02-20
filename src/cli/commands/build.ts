@@ -15,7 +15,6 @@ import {
 import {
   createProvider,
   formatAPIError,
-  isNonRecoverableError,
   type Message,
 } from "../services/ai/provider.js";
 import {
@@ -487,18 +486,28 @@ export const buildCommand: SlashCommand = {
             const fixParser = new StreamParser();
             const fixChanges: FileChange[] = [];
 
-            for await (const delta of provider.chatStream(messages)) {
-              if (fixFirstToken) {
-                fixSpinner.stop();
-                console.log();
-                fixFirstToken = false;
+            try {
+              for await (const delta of provider.chatStream(messages)) {
+                if (fixFirstToken) {
+                  fixSpinner.stop();
+                  console.log();
+                  fixFirstToken = false;
+                }
+                for (const event of fixParser.feed(delta)) {
+                  handleEvent(event, fixChanges);
+                }
               }
-              for (const event of fixParser.feed(delta)) {
+              for (const event of fixParser.flush()) {
                 handleEvent(event, fixChanges);
               }
-            }
-            for (const event of fixParser.flush()) {
-              handleEvent(event, fixChanges);
+            } catch (retryError) {
+              if (fixFirstToken) {
+                fixSpinner.fail("Request failed");
+              }
+              context.log.error(formatAPIError(retryError));
+              // Remove the unanswered user message to keep history consistent
+              messages.pop();
+              break;
             }
 
             if (fixChanges.length > 0) {
@@ -542,10 +551,6 @@ export const buildCommand: SlashCommand = {
           spinner.fail("Request failed");
         }
         context.log.error(formatAPIError(error));
-        if (isNonRecoverableError(error)) {
-          rl.close();
-          break;
-        }
         console.log();
       }
     }

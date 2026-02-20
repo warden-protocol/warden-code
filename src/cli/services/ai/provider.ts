@@ -21,25 +21,16 @@ export function createProvider(config: BuildConfig): AIProvider {
   }
 }
 
-/**
- * Returns whether the error is non-recoverable and the build loop should exit.
- */
-export function isNonRecoverableError(error: unknown): boolean {
-  const status = getStatusCode(error);
-  // Auth errors and permission errors won't resolve by retrying
-  return status === 401 || status === 403;
-}
-
 export function formatAPIError(error: unknown): string {
   const status = getStatusCode(error);
   const body = getErrorBody(error);
 
   if (status === 401) {
-    return "Invalid API key. Run /build again to reconfigure.";
+    return "Invalid API key. Use /model to reconfigure.";
   }
 
   if (status === 403) {
-    return "Access denied. Your API key does not have permission to use this model.";
+    return "Access denied. Your API key does not have permission for this model. Use /model to switch.";
   }
 
   if (status === 400) {
@@ -53,7 +44,7 @@ export function formatAPIError(error: unknown): string {
   }
 
   if (status === 404) {
-    return `Model not found. Check your model name and try again.`;
+    return "Model not found. Use /model to switch models.";
   }
 
   if (status === 429) {

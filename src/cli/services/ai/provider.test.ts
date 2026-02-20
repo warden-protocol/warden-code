@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatAPIError, isNonRecoverableError } from "./provider.js";
+import { formatAPIError } from "./provider.js";
 
 function makeApiError(status: number, error?: unknown) {
   return Object.assign(new Error(`${status}`), { status, error });
@@ -9,14 +9,14 @@ describe("formatAPIError", () => {
   it("should format 401 as invalid API key", () => {
     const err = makeApiError(401);
     expect(formatAPIError(err)).toBe(
-      "Invalid API key. Run /build again to reconfigure.",
+      "Invalid API key. Use /model to reconfigure.",
     );
   });
 
   it("should format 403 as access denied", () => {
     const err = makeApiError(403);
     expect(formatAPIError(err)).toBe(
-      "Access denied. Your API key does not have permission to use this model.",
+      "Access denied. Your API key does not have permission for this model. Use /model to switch.",
     );
   });
 
@@ -55,7 +55,7 @@ describe("formatAPIError", () => {
   it("should format 404 as model not found", () => {
     const err = makeApiError(404);
     expect(formatAPIError(err)).toBe(
-      "Model not found. Check your model name and try again.",
+      "Model not found. Use /model to switch models.",
     );
   });
 
@@ -104,37 +104,5 @@ describe("formatAPIError", () => {
   it("should extract string error body", () => {
     const err = makeApiError(400, "raw string error");
     expect(formatAPIError(err)).toBe("Bad request: raw string error");
-  });
-});
-
-describe("isNonRecoverableError", () => {
-  it("should return true for 401", () => {
-    expect(isNonRecoverableError(makeApiError(401))).toBe(true);
-  });
-
-  it("should return true for 403", () => {
-    expect(isNonRecoverableError(makeApiError(403))).toBe(true);
-  });
-
-  it("should return false for 400", () => {
-    expect(isNonRecoverableError(makeApiError(400))).toBe(false);
-  });
-
-  it("should return false for 429", () => {
-    expect(isNonRecoverableError(makeApiError(429))).toBe(false);
-  });
-
-  it("should return false for 500", () => {
-    expect(isNonRecoverableError(makeApiError(500))).toBe(false);
-  });
-
-  it("should return false for plain Error", () => {
-    expect(isNonRecoverableError(new Error("fail"))).toBe(false);
-  });
-
-  it("should return false for non-error values", () => {
-    expect(isNonRecoverableError("string")).toBe(false);
-    expect(isNonRecoverableError(null)).toBe(false);
-    expect(isNonRecoverableError(undefined)).toBe(false);
   });
 });
