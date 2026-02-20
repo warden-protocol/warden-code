@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.12.0 (2026-02-20)
+
+### Features
+
+- Multi-provider model switching: API keys for all configured providers are stored in `~/.warden/config.json` so switching between OpenAI and Anthropic no longer requires re-entering keys
+- Two-step `/model` picker: select provider first (with "current" and "configured" labels), then select model (with "current" or "configured" on the last-used model)
+- Escape key navigation in `/model` wizard: press Esc to go back to the previous step, with "esc back" hint in navigation cues
+- Conversation history preserved when switching models within the same provider; cleared only on provider change
+
+### Improvements
+
+- Silent config migration: legacy single-provider `~/.warden/config.json` files are automatically upgraded to multi-provider format on first read
+
 ## 1.11.1 (2026-02-20)
 
 ### Fixes
