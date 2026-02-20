@@ -108,11 +108,13 @@ function agentCardPath(projectDir: string): string {
   return path.join(projectDir, "public", ".well-known", "agent-card.json");
 }
 
-function registrationPaths(projectDir: string): [string, string] {
-  return [
-    path.join(projectDir, "public", ".well-known", "agent-registration.json"),
-    path.join(projectDir, "public", "agent-registration.json"),
-  ];
+export function registrationPath(projectDir: string): string {
+  return path.join(
+    projectDir,
+    "public",
+    ".well-known",
+    "agent-registration.json",
+  );
 }
 
 // ── Read ───────────────────────────────────────────────────────
@@ -137,8 +139,8 @@ export async function readProjectConfig(
     return null;
   }
 
-  // Read agent-registration.json (canonical location)
-  const [regPath] = registrationPaths(projectDir);
+  // Read agent-registration.json
+  const regPath = registrationPath(projectDir);
   const hasReg = await fileExists(regPath);
   let reg: Record<string, unknown> = {};
   if (hasReg) {
@@ -247,21 +249,19 @@ export async function writeIdentityConfig(
   card.version = identity.version;
   await writeFile(cardFile, JSON.stringify(card, null, 2) + "\n");
 
-  // Update both agent-registration.json files
-  const [primaryReg, secondaryReg] = registrationPaths(projectDir);
+  // Update agent-registration.json
+  const regFile = registrationPath(projectDir);
   let reg: Record<string, unknown> = {};
-  if (await fileExists(primaryReg)) {
+  if (await fileExists(regFile)) {
     try {
-      reg = JSON.parse(await readFile(primaryReg)) as Record<string, unknown>;
+      reg = JSON.parse(await readFile(regFile)) as Record<string, unknown>;
     } catch {
       // Start fresh if malformed
     }
   }
   reg.name = identity.name;
   reg.description = identity.description;
-  const regJson = JSON.stringify(reg, null, 2) + "\n";
-  await writeFile(primaryReg, regJson);
-  await writeFile(secondaryReg, regJson);
+  await writeFile(regFile, JSON.stringify(reg, null, 2) + "\n");
 }
 
 // ── Write: skills (agent-card.json) ────────────────────────────
@@ -324,19 +324,17 @@ export async function writePaymentConfig(
 
   await writeFile(dotEnvPath, serializeEnv(original, updates, removals));
 
-  // Update both agent-registration.json files
-  const [primaryReg, secondaryReg] = registrationPaths(projectDir);
+  // Update agent-registration.json
+  const regFile = registrationPath(projectDir);
   let reg: Record<string, unknown> = {};
-  if (await fileExists(primaryReg)) {
+  if (await fileExists(regFile)) {
     try {
-      reg = JSON.parse(await readFile(primaryReg)) as Record<string, unknown>;
+      reg = JSON.parse(await readFile(regFile)) as Record<string, unknown>;
     } catch {
       // Start fresh if malformed
     }
   }
   reg.x402Support = payments.x402Support;
   reg.x402Networks = payments.x402Networks;
-  const regJson = JSON.stringify(reg, null, 2) + "\n";
-  await writeFile(primaryReg, regJson);
-  await writeFile(secondaryReg, regJson);
+  await writeFile(regFile, JSON.stringify(reg, null, 2) + "\n");
 }

@@ -128,6 +128,12 @@ async function editIdentity(
   context.log.success("Identity updated.");
 }
 
+export function suggestAgentUrl(host: string, port: string): string {
+  if (port === "443") return `https://${host}`;
+  if (port === "80") return `http://${host}`;
+  return `http://${host}:${port}`;
+}
+
 async function editServer(
   projectDir: string,
   config: AgentProjectConfig,
@@ -146,7 +152,7 @@ async function editServer(
     theme: promptTheme,
   });
 
-  const suggestedUrl = `http://${host}:${port}`;
+  const suggestedUrl = suggestAgentUrl(host, port);
   const agentUrl = await input({
     message: "Agent URL:",
     default:

@@ -51,6 +51,35 @@ export function processTemplate(content: string, config: AgentConfig): string {
     )
     .join(",\n  ");
 
+  // Collect unique OASF tag paths across all skills for registration services
+  const oasfPaths = [
+    ...new Set(config.skills.flatMap((s) => tagSkill(s.name, s.description))),
+  ];
+
+  // Build ERC-8004 registration services array (A2A + Web + OASF)
+  const regServices: Array<Record<string, unknown>> = [
+    {
+      name: "A2A",
+      endpoint: "",
+      version: "0.3.0",
+      ...(oasfPaths.length > 0 ? { a2aSkills: oasfPaths } : {}),
+    },
+    { name: "Web", endpoint: "" },
+    ...(oasfPaths.length > 0
+      ? [
+          {
+            name: "OASF",
+            endpoint: "",
+            version: "v0.8.0",
+            skills: oasfPaths,
+          },
+        ]
+      : []),
+  ];
+  const servicesJsonStr = regServices
+    .map((s) => JSON.stringify(s, null, 4))
+    .join(",\n  ");
+
   const modelStartupLog =
     config.provider === "openai"
       ? `const hasApiKey = !!process.env.OPENAI_API_KEY;
@@ -201,13 +230,10 @@ if (paymentConfig) {
     .replace(/\{\{description\}\}/g, config.description)
     .replace(/\{\{skills\}\}/g, skillsStr)
     .replace(/\{\{skills_json\}\}/g, skillsJsonStr)
+    .replace(/\{\{services_json\}\}/g, servicesJsonStr)
     .replace(
       /\{\{capabilities_streaming\}\}/g,
       String(config.capabilities.streaming),
-    )
-    .replace(
-      /\{\{capabilities_multiturn\}\}/g,
-      String(config.capabilities.multiTurn),
     )
     .replace(/\{\{model_startup_log\}\}/g, modelStartupLog)
     .replace(/\{\{x402_support\}\}/g, String(hasX402Config))
@@ -432,10 +458,6 @@ export async function scaffoldAgent(
   const regContent = processTemplate(regTemplate, config);
   await writeFile(
     path.join(targetDir, "public", ".well-known", "agent-registration.json"),
-    regContent,
-  );
-  await writeFile(
-    path.join(targetDir, "public", "agent-registration.json"),
     regContent,
   );
 

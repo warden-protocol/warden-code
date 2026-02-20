@@ -3,13 +3,7 @@
   "name": "{{name}}",
   "description": "{{description}}",
   "image": "",
-  "services": [
-    {
-      "name": "A2A",
-      "endpoint": "",
-      "version": "0.5.0"
-    }
-  ],
+  "services": [{{services_json}}],
   "x402Support": {{x402_support}},
   "x402Networks": {{x402_networks}},
   "active": true,

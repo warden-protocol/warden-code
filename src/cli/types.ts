@@ -32,7 +32,6 @@ export interface AgentConfig {
   provider: "echo" | "openai";
   capabilities: {
     streaming: boolean;
-    multiTurn: boolean;
   };
   skills: AgentSkill[];
   x402?: {

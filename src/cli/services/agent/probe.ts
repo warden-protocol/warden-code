@@ -21,7 +21,6 @@ async function probeA2A(baseUrl: string): Promise<AgentInfo | null> {
       description: card.description,
       capabilities: [
         card.capabilities?.streaming ? "streaming" : "",
-        card.capabilities?.multiTurn ? "multi-turn" : "",
         ...(card.skills?.map((s) => s.name) ?? []),
       ].filter(Boolean),
       url: baseUrl,

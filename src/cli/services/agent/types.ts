@@ -27,7 +27,6 @@ export interface A2AAgentCard {
   url: string;
   capabilities?: {
     streaming?: boolean;
-    multiTurn?: boolean;
   };
   skills?: Array<{
     id: string;

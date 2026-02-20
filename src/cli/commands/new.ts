@@ -134,10 +134,10 @@ export const newCommand: SlashCommand = {
               "Tokens stream in real-time as the model generates — faster perceived response",
           },
           {
-            value: "multiTurn" as const,
-            name: "Multi-turn conversations",
+            value: "standard" as const,
+            name: "Standard",
             description:
-              "Response arrives all at once after completion — simpler to work with",
+              "Response arrives all at once after completion. Simpler to work with",
           },
         ],
         theme: promptTheme,
@@ -286,7 +286,6 @@ export const newCommand: SlashCommand = {
         provider,
         capabilities: {
           streaming: capability === "streaming",
-          multiTurn: capability === "multiTurn",
         },
         skills,
         x402: x402Config,
@@ -308,9 +307,6 @@ export const newCommand: SlashCommand = {
       );
       console.log(
         `  Streaming:    ${config.capabilities.streaming ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
-      );
-      console.log(
-        `  Multi-turn:   ${config.capabilities.multiTurn ? chalk.rgb(199, 255, 142)("Yes") : chalk.dim("No")}`,
       );
       console.log(
         `  Skills:       ${config.skills.length > 0 ? chalk.rgb(199, 255, 142)(config.skills.map((s) => s.name).join(", ")) : chalk.dim("None")}`,

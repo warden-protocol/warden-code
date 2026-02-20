@@ -728,7 +728,6 @@
                     const caps = agentCard.capabilities || {};
                     capsRowEl.innerHTML = "";
                     if (caps.streaming) addBadge(capsRowEl, "streaming");
-                    if (caps.multiTurn) addBadge(capsRowEl, "multi-turn");
                     if (caps.pushNotifications)
                         addBadge(capsRowEl, "push notifications");
 

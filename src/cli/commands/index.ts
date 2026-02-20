@@ -6,3 +6,8 @@ export { createHelpCommand } from "./help.js";
 export { clearCommand } from "./clear.js";
 export { exitCommand } from "./exit.js";
 export { configCommand } from "./config.js";
+export {
+  registerCommand,
+  activateCommand,
+  deactivateCommand,
+} from "./register.js";

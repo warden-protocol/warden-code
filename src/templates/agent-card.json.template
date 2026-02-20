@@ -4,8 +4,9 @@
   "url": "http://localhost:3000",
   "version": "0.1.0",
   "capabilities": {
-    "streaming": {{capabilities_streaming}},
-    "multiTurn": {{capabilities_multiturn}}
+    "streaming": {{capabilities_streaming}}
   },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
   "skills": [{{skills_json}}]
 }
