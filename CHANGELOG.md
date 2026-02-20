@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.9.2 (2026-02-20)
+
+### Features
+
+- `/rebuild` command in build mode: manually trigger `npm install` + `npm run build` without asking the AI
+
+### Fixes
+
+- Fixed pasted text remnants leaking into the next prompt by clearing readline's internal line buffer
+
 ## 1.9.1 (2026-02-20)
 
 ### Fixes
