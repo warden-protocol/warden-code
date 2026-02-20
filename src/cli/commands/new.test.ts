@@ -63,13 +63,6 @@ function validateEvmAddress(value: string): string | boolean {
   );
 }
 
-function validateSolanaAddress(value: string): string | boolean {
-  return (
-    /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value.trim()) ||
-    "Enter a valid Solana address (base58, 32-44 characters)"
-  );
-}
-
 describe("validateEvmAddress", () => {
   describe("valid addresses", () => {
     const validAddresses = [
@@ -121,63 +114,6 @@ describe("validateEvmAddress", () => {
     it.each(invalidCases)('should reject "$addr" ($reason)', ({ addr }) => {
       expect(validateEvmAddress(addr)).toBe(
         "Enter a valid Ethereum address (0x followed by 40 hex characters)",
-      );
-    });
-  });
-});
-
-describe("validateSolanaAddress", () => {
-  describe("valid addresses", () => {
-    const validAddresses = [
-      "11111111111111111111111111111111",
-      "So11111111111111111111111111111111111111112",
-      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-      "9noXzpXnkyEcKF3AeXqUHTdR59V5uvrRBUZ9bwfQwxeq",
-      "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-    ];
-
-    it.each(validAddresses)('should accept "%s" as valid', (addr) => {
-      expect(validateSolanaAddress(addr)).toBe(true);
-    });
-
-    it("should trim whitespace before validating", () => {
-      expect(
-        validateSolanaAddress(
-          "  So11111111111111111111111111111111111111112  ",
-        ),
-      ).toBe(true);
-    });
-  });
-
-  describe("invalid addresses", () => {
-    const invalidCases = [
-      { addr: "", reason: "empty string" },
-      { addr: "abc", reason: "too short (3 chars)" },
-      {
-        addr: "0x1234567890abcdef1234567890abcdef12345678",
-        reason: "EVM address (0x prefix not in base58)",
-      },
-      {
-        addr: "O0000000000000000000000000000000",
-        reason: "contains O (not in base58)",
-      },
-      {
-        addr: "I0000000000000000000000000000000",
-        reason: "contains I (not in base58)",
-      },
-      {
-        addr: "l0000000000000000000000000000000",
-        reason: "contains l (not in base58)",
-      },
-      {
-        addr: "000000000000000000000000000000000000000000000",
-        reason: "45 chars (too long)",
-      },
-    ];
-
-    it.each(invalidCases)('should reject "$addr" ($reason)', ({ addr }) => {
-      expect(validateSolanaAddress(addr)).toBe(
-        "Enter a valid Solana address (base58, 32-44 characters)",
       );
     });
   });
