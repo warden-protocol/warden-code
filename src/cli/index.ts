@@ -10,6 +10,7 @@ import {
   newCommand,
   buildCommand,
   chatCommand,
+  configCommand,
 } from "./commands/index.js";
 import { banner, prompt } from "./ui/format.js";
 
@@ -24,6 +25,7 @@ async function main() {
   registry.register(newCommand);
   registry.register(buildCommand);
   registry.register(chatCommand);
+  registry.register(configCommand);
 
   // Display welcome banner and available commands
   console.log(banner());
