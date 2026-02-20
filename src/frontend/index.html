@@ -77,16 +77,10 @@
                 font-size: 11px;
                 color: #c7ff8e;
             }
-            .phantom-info {
-                font-size: 11px;
-                color: #ab9ff2;
-            }
-
             /* Info bar with corner brackets */
             .info-bar {
                 padding: 20px 28px;
                 border-bottom: 1px solid #1e1e1e;
-                flex-shrink: 0;
                 position: relative;
                 background: rgba(12, 12, 12, 0.6);
             }
@@ -541,15 +535,6 @@
             .btn-evm:hover {
                 background: #b5f070;
             }
-            .btn-phantom {
-                background: #ab9ff2;
-                color: #0c0c0c;
-                border-color: #ab9ff2;
-                font-weight: 600;
-            }
-            .btn-phantom:hover {
-                background: #9a8de0;
-            }
             .btn-disconnect {
                 background: transparent;
                 color: #555;
@@ -567,6 +552,60 @@
             .hidden {
                 display: none !important;
             }
+
+            /* Mobile responsive */
+            @media (max-width: 600px) {
+                header {
+                    padding: 12px 14px;
+                }
+                .wallet-area {
+                    flex-wrap: wrap;
+                }
+                .btn-wallet {
+                    padding: 8px 14px;
+                    font-size: 12px;
+                }
+                .info-bar {
+                    padding: 16px 14px;
+                }
+                .info-bar::before {
+                    left: 6px;
+                }
+                .info-bar::after {
+                    right: 6px;
+                }
+                .hero {
+                    padding: 28px 14px 16px;
+                }
+                .hero-name {
+                    font-size: 22px;
+                }
+                .hero-desc {
+                    max-width: 100%;
+                }
+                .suggestions {
+                    padding: 8px 14px 0;
+                }
+                .suggestion-btn {
+                    max-width: 100%;
+                }
+                #messages {
+                    padding: 16px 14px;
+                }
+                .message {
+                    max-width: 90%;
+                }
+                #input-bar {
+                    padding: 12px 14px;
+                }
+                .btn-primary {
+                    padding: 10px 14px;
+                }
+                .feedback-star {
+                    font-size: 16px;
+                    padding: 2px 3px;
+                }
+            }
         </style>
     </head>
     <body>
@@ -583,28 +622,18 @@
                 <button class="btn-wallet btn-disconnect" id="disconnect-evm">
                     Disconnect EVM
                 </button>
-                <span class="phantom-info" id="phantom-info"></span>
-                <button class="btn-wallet btn-phantom" id="connect-phantom">
-                    Connect Phantom
-                </button>
-                <button
-                    class="btn-wallet btn-disconnect"
-                    id="disconnect-phantom"
-                >
-                    Disconnect SOL
-                </button>
             </div>
         </header>
 
-        <div class="info-bar" id="info-bar">
-            <div class="agent-description" id="agent-description"></div>
-            <div class="capabilities-row" id="capabilities-row"></div>
-
-            <div class="reputation-row hidden" id="reputation-row"></div>
-            <div class="provider-row hidden" id="provider-row"></div>
-        </div>
-
         <div id="messages">
+            <div class="info-bar" id="info-bar">
+                <div class="agent-description" id="agent-description"></div>
+                <div class="capabilities-row" id="capabilities-row"></div>
+
+                <div class="reputation-row hidden" id="reputation-row"></div>
+                <div class="provider-row hidden" id="provider-row"></div>
+            </div>
+
             <div class="hero" id="hero">
                 <div class="hero-name" id="hero-name"></div>
                 <div class="hero-desc" id="hero-desc"></div>
@@ -637,7 +666,6 @@
             let x402Client = null;
             let wrapFetchWithPayment = null;
             let evmWalletClient = null;
-            let phantomPublicKey = null;
             let x402Loaded = false;
             let x402Loading = false;
 
@@ -657,11 +685,8 @@
             const heroDescEl = $("hero-desc");
             const walletArea = $("wallet-area");
             const walletInfoEl = $("wallet-info");
-            const phantomInfoEl = $("phantom-info");
             const connectEvmBtn = $("connect-evm");
             const disconnectEvmBtn = $("disconnect-evm");
-            const connectPhantomBtn = $("connect-phantom");
-            const disconnectPhantomBtn = $("disconnect-phantom");
             const messagesDiv = $("messages");
             const welcomeMsg = $("welcome-msg");
             const chatInput = $("chat-input");
@@ -779,7 +804,6 @@
                                 // Show wallet area for reputation (EVM only)
                                 if (!reg.x402Support) {
                                     walletArea.classList.remove("hidden");
-                                    connectPhantomBtn.classList.add("hidden");
                                     welcomeMsg.textContent =
                                         "Send a message to start chatting. Connect a wallet to leave feedback.";
                                 }
@@ -829,8 +853,6 @@
                 "eip155:11155420": "https://sepolia-optimism.etherscan.io/tx/",
                 "eip155:137": "https://polygonscan.com/tx/",
                 "eip155:80002": "https://amoy.polygonscan.com/tx/",
-                "solana:mainnet": "https://solscan.io/tx/",
-                "solana:devnet": "https://solscan.io/tx/?cluster=devnet",
             };
 
             // -----------------------------------------------------------------------
@@ -1063,17 +1085,6 @@
                 if (x402Loaded || x402Loading) return x402Loaded;
                 x402Loading = true;
 
-                // Determine which wallet families to show.
-                // If no networks array provided (lazy 402 fallback), show all.
-                const showEvm =
-                    !networks ||
-                    networks.length === 0 ||
-                    networks.includes("evm");
-                const showSolana =
-                    !networks ||
-                    networks.length === 0 ||
-                    networks.includes("solana");
-
                 try {
                     const [fetchMod, evmMod] = await Promise.all([
                         import("https://esm.sh/@x402/fetch@2?bundle"),
@@ -1095,14 +1106,7 @@
                     };
                     x402Loaded = true;
 
-                    // Show only relevant wallet buttons
                     walletArea.classList.remove("hidden");
-                    if (!showEvm) {
-                        connectEvmBtn.classList.add("hidden");
-                    }
-                    if (!showSolana) {
-                        connectPhantomBtn.classList.add("hidden");
-                    }
                     const x4 = agentCard?.x402;
                     const priceInfo =
                         x4?.price && x4?.currency
@@ -1124,10 +1128,24 @@
             }
 
             // -----------------------------------------------------------------------
+            // Mobile detection
+            // -----------------------------------------------------------------------
+            function isMobile() {
+                return (
+                    /android/i.test(navigator.userAgent) ||
+                    /iPad|iPhone|iPod/.test(navigator.userAgent)
+                );
+            }
+
+            function isInWalletBrowser() {
+                return !!window.ethereum?.isMetaMask;
+            }
+
+            // -----------------------------------------------------------------------
             // Wallet: MetaMask (EVM)
             // -----------------------------------------------------------------------
             function hasAnyWallet() {
-                return evmWalletClient !== null || phantomPublicKey !== null;
+                return evmWalletClient !== null;
             }
 
             // Current EVM chain ID (decimal), kept in sync with MetaMask
@@ -1150,6 +1168,13 @@
             async function connectEvm() {
                 const ethereum = window.ethereum;
                 if (!ethereum) {
+                    if (isMobile()) {
+                        // Open this page in MetaMask's in-app browser
+                        const dappUrl =
+                            window.location.host + window.location.pathname;
+                        window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+                        return;
+                    }
                     appendMessage(
                         "MetaMask not detected. Install it to continue.",
                         "error",
@@ -1208,53 +1233,6 @@
             }
 
             // -----------------------------------------------------------------------
-            // Wallet: Phantom (Solana)
-            // -----------------------------------------------------------------------
-            async function connectPhantom() {
-                const phantom = window.phantom?.solana;
-                if (!phantom?.isPhantom) {
-                    appendMessage(
-                        "Phantom not detected. Install it from phantom.app.",
-                        "error",
-                    );
-                    return;
-                }
-                try {
-                    connectPhantomBtn.disabled = true;
-                    const resp = await phantom.connect();
-                    phantomPublicKey = resp.publicKey.toBase58();
-                    const short = `${phantomPublicKey.slice(0, 4)}...${phantomPublicKey.slice(-4)}`;
-                    phantomInfoEl.textContent = short;
-                    connectPhantomBtn.style.display = "none";
-                    disconnectPhantomBtn.style.display = "inline-block";
-                    appendMessage(
-                        `Solana wallet connected: ${short}`,
-                        "system",
-                    );
-                } catch (err) {
-                    appendMessage(
-                        `Phantom connection failed: ${err.message || err}`,
-                        "error",
-                    );
-                } finally {
-                    connectPhantomBtn.disabled = false;
-                }
-            }
-
-            function disconnectPhantom() {
-                const phantom = window.phantom?.solana;
-                if (phantom)
-                    try {
-                        phantom.disconnect();
-                    } catch {}
-                phantomPublicKey = null;
-                phantomInfoEl.textContent = "";
-                connectPhantomBtn.style.display = "inline-block";
-                disconnectPhantomBtn.style.display = "none";
-                appendMessage("Solana wallet disconnected.", "system");
-            }
-
-            // -----------------------------------------------------------------------
             // Build x402-wrapped fetch (when wallets are connected)
             // -----------------------------------------------------------------------
             function buildPaymentFetch() {
@@ -1268,7 +1246,6 @@
                 } = window.__x402;
 
                 const client = new X402Client((_version, accepts) => {
-                    // 1. Try the currently selected MetaMask chain
                     if (evmWalletClient && evmChainId) {
                         const currentNet = `eip155:${evmChainId}`;
                         const match = accepts.find(
@@ -1276,16 +1253,6 @@
                         );
                         if (match) return match;
                     }
-
-                    // 2. Try Solana
-                    if (phantomPublicKey) {
-                        const solMatch = accepts.find((a) =>
-                            a.network.startsWith("solana:"),
-                        );
-                        if (solMatch) return solMatch;
-                    }
-
-                    // 3. First available
                     return accepts[0];
                 });
 
@@ -1328,7 +1295,7 @@
                         if (activeStatus)
                             updateStatus(
                                 activeStatus,
-                                "Agent requires payment. Signing...",
+                                "Agent requires payment. Processing...",
                             );
                         return res;
                     }
@@ -1877,8 +1844,11 @@
             // -----------------------------------------------------------------------
             connectEvmBtn.addEventListener("click", connectEvm);
             disconnectEvmBtn.addEventListener("click", disconnectEvm);
-            connectPhantomBtn.addEventListener("click", connectPhantom);
-            disconnectPhantomBtn.addEventListener("click", disconnectPhantom);
+
+            // On mobile (outside a wallet browser), relabel the button
+            if (isMobile() && !isInWalletBrowser()) {
+                connectEvmBtn.textContent = "Open in MetaMask";
+            }
 
             sendBtn.addEventListener("click", () => {
                 const text = chatInput.value.trim();
@@ -1908,24 +1878,6 @@
                     rebuildEvmWalletClient(newChainId);
                     appendMessage(`Switched to chain ${newChainId}.`, "system");
                     refreshFeedbackRows();
-                });
-            }
-
-            // Phantom events
-            const phantomProvider = window.phantom?.solana;
-            if (phantomProvider) {
-                phantomProvider.on("disconnect", () => {
-                    disconnectPhantom();
-                });
-                phantomProvider.on("accountChanged", (pk) => {
-                    if (pk) {
-                        phantomPublicKey = pk.toBase58();
-                        const short = `${phantomPublicKey.slice(0, 4)}...${phantomPublicKey.slice(-4)}`;
-                        phantomInfoEl.textContent = short;
-                        appendMessage("Phantom account changed.", "system");
-                    } else {
-                        disconnectPhantom();
-                    }
                 });
             }
 

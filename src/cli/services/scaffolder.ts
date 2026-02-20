@@ -62,7 +62,6 @@ export function processTemplate(content: string, config: AgentConfig): string {
   const hasX402 = !!config.x402;
   const accepts = config.x402?.accepts ?? [];
   const hasEvm = accepts.some((a) => a.network.startsWith("eip155:"));
-  const hasSvm = accepts.some((a) => a.network.startsWith("solana:"));
 
   const x402Imports = hasX402
     ? `import { getPaymentConfig, createPaymentApp } from "./payments.js";`
@@ -142,7 +141,7 @@ if (paymentConfig) {
     : listenBlock;
 
   const x402Dependencies = hasX402
-    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}${hasSvm ? `,\n    "@x402/svm": "^2.3.0"` : ""}`
+    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}`
     : "";
 
   const x402DevDependencies = hasX402
@@ -153,8 +152,6 @@ if (paymentConfig) {
   const networkPrefixMap: Record<string, string> = {
     "eip155:84532": "X402_BASE_SEPOLIA",
     "eip155:8453": "X402_BASE",
-    "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "X402_SOL_DEVNET",
-    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "X402_SOL",
   };
 
   // Generate env config lines for the configured networks (active)
@@ -166,23 +163,10 @@ if (paymentConfig) {
       label: "Base Sepolia (testnet)",
     },
     { id: "eip155:8453", prefix: "X402_BASE", label: "Base (mainnet)" },
-    {
-      id: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-      prefix: "X402_SOL_DEVNET",
-      label: "Solana Devnet",
-    },
-    {
-      id: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-      prefix: "X402_SOL",
-      label: "Solana Mainnet",
-    },
   ];
 
   // Determine the default facilitator URL based on whether any mainnet network is configured
-  const mainnetIds = new Set([
-    "eip155:8453",
-    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-  ]);
+  const mainnetIds = new Set(["eip155:8453"]);
   const hasMainnet = accepts.some((a) => mainnetIds.has(a.network));
   const defaultFacilitator = hasMainnet
     ? "https://facilitator.payai.network"
@@ -254,7 +238,7 @@ if (paymentConfig) {
     .replace(/\{\{x402_support\}\}/g, String(hasX402))
     .replace(
       /\{\{x402_networks\}\}/g,
-      JSON.stringify([hasEvm && "evm", hasSvm && "solana"].filter(Boolean)),
+      JSON.stringify([hasEvm && "evm"].filter(Boolean)),
     )
     .replace(/\{\{packageName\}\}/g, config.packageName)
     .replace(
@@ -292,7 +276,6 @@ export function buildPaymentsModule(config: AgentConfig): string | null {
 
   const accepts = config.x402.accepts;
   const hasEvm = accepts.some((a) => a.network.startsWith("eip155:"));
-  const hasSvm = accepts.some((a) => a.network.startsWith("solana:"));
 
   const imports = [
     `import { resolve } from "node:path";`,
@@ -304,9 +287,6 @@ export function buildPaymentsModule(config: AgentConfig): string | null {
     `import type { Network } from "@x402/core/types";`,
     ...(hasEvm
       ? [`import { registerExactEvmScheme } from "@x402/evm/exact/server";`]
-      : []),
-    ...(hasSvm
-      ? [`import { registerExactSvmScheme } from "@x402/svm/exact/server";`]
       : []),
   ].join("\n");
 
@@ -328,8 +308,6 @@ export interface PaymentConfig {
 const x402Networks: { prefix: string; network: string; envPrefix: string }[] = [
   { prefix: "BASE_SEPOLIA", network: "eip155:84532", envPrefix: "X402_BASE_SEPOLIA" },
   { prefix: "BASE", network: "eip155:8453", envPrefix: "X402_BASE" },
-  { prefix: "SOL_DEVNET", network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", envPrefix: "X402_SOL_DEVNET" },
-  { prefix: "SOL", network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", envPrefix: "X402_SOL" },
 ];
 
 export function getPaymentConfig(): PaymentConfig | null {
@@ -369,8 +347,7 @@ export function createPaymentApp(
   const resourceServer = new x402ResourceServer(facilitatorClient);
 
   const hasEvm = config.accepts.some((a) => a.network.startsWith("eip155:"));
-  const hasSvm = config.accepts.some((a) => a.network.startsWith("solana:"));
-${hasEvm ? `  if (hasEvm) registerExactEvmScheme(resourceServer);\n` : ""}${hasSvm ? `  if (hasSvm) registerExactSvmScheme(resourceServer);\n` : ""}
+${hasEvm ? `  if (hasEvm) registerExactEvmScheme(resourceServer);\n` : ""}
   const app = express();
 
   // Serve static files from public/ (before CORS/payment middleware)

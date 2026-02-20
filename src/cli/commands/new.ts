@@ -200,7 +200,7 @@ export const newCommand: SlashCommand = {
       console.log(
         chalk.dim(
           "x402 lets your agent charge per request using USDC.\n" +
-            "Supports Base (EVM) and Solana networks.\n" +
+            "Supports Base (EVM) networks.\n" +
             "Clients pay automatically via the x402 protocol (HTTP 402).",
         ),
       );
@@ -233,34 +233,14 @@ export const newCommand: SlashCommand = {
                 name: "Base (mainnet)",
                 description: "Real USDC; uses the PayAI facilitator",
               },
-              {
-                value: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-                name: "Solana Devnet",
-                description:
-                  "Free test USDC, uses the default x402.org facilitator",
-              },
-              {
-                value: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-                name: "Solana Mainnet",
-                description: "Real USDC; uses the PayAI facilitator",
-              },
             ],
             theme: promptTheme,
           });
 
-          const isSolana = network.startsWith("solana:");
           const payTo = await input({
-            message: isSolana
-              ? "Solana wallet address to receive payments:"
-              : "EVM wallet address to receive payments (0x...):",
+            message: "EVM wallet address to receive payments (0x...):",
             validate: (v) => {
               const trimmed = v.trim();
-              if (isSolana) {
-                return (
-                  /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmed) ||
-                  "Enter a valid Solana address (base58, 32-44 characters)"
-                );
-              }
               return (
                 /^0x[a-fA-F0-9]{40}$/.test(trimmed) ||
                 "Enter a valid Ethereum address (0x followed by 40 hex characters)"
@@ -275,9 +255,7 @@ export const newCommand: SlashCommand = {
             theme: promptTheme,
           });
 
-          const isMainnet =
-            network === "eip155:8453" ||
-            network === "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+          const isMainnet = network === "eip155:8453";
           if (isMainnet) {
             console.log(
               chalk.dim(
@@ -383,13 +361,8 @@ export const newCommand: SlashCommand = {
           const networkPrefixMap: Record<string, string> = {
             "eip155:84532": "X402_BASE_SEPOLIA",
             "eip155:8453": "X402_BASE",
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": "X402_SOL_DEVNET",
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": "X402_SOL",
           };
-          const mainnetIds = new Set([
-            "eip155:8453",
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-          ]);
+          const mainnetIds = new Set(["eip155:8453"]);
           const hasMainnet = config.x402.accepts.some((a) =>
             mainnetIds.has(a.network),
           );
