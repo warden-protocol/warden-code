@@ -98,7 +98,7 @@ Your agent will be available at `http://localhost:3000`.
 
 Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It loads the agent card from `/.well-known/agent-card.json` and displays the agent name, description, capabilities, and provider info. Example prompts from skills are shown as clickable conversation starters. If the agent card has an `image` field, it is used as the page favicon. Agent responses are rendered as GitHub-flavored markdown (headings, code blocks, lists, tables, links).
 
-When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows wallet connect buttons for the configured networks (MetaMask for EVM, Phantom for Solana). Payment transaction hashes in responses link to the appropriate block explorer.
+When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows a MetaMask wallet connect button. On mobile browsers, the button becomes "Open in MetaMask" and redirects to MetaMask's in-app browser via deep link. Payment transaction hashes in responses link to the appropriate block explorer.
 
 ### Reputation
 
@@ -126,10 +126,10 @@ Agents can optionally charge per request using [x402](https://x402.org), Coinbas
 ### How it works
 
 1. During `/new`, choose "Enable x402 payments" when prompted
-2. Select a payment network (Base or Solana, testnet or mainnet)
-3. Provide the wallet address for that network
+2. Select a payment network (Base Sepolia testnet or Base mainnet)
+3. Provide the EVM wallet address for that network
 4. Set a price per request (default: `0.01`)
-5. Optionally add more networks (e.g., Base Sepolia + Solana Devnet)
+5. Optionally add more networks
 
 The wizard generates a `.env` file with per-network payment variables. At runtime, the server reads these variables and conditionally enables the Express + x402 middleware layer. When no `PAY_TO` variables are set, the agent falls back to the standard `AgentServer.listen()` with no Express dependency.
 
@@ -141,8 +141,6 @@ Each payment network uses three environment variables with a shared prefix:
 |--------|---------|
 | `X402_BASE_SEPOLIA` | Base Sepolia (testnet) |
 | `X402_BASE` | Base (mainnet) |
-| `X402_SOL_DEVNET` | Solana Devnet |
-| `X402_SOL` | Solana Mainnet |
 
 A single facilitator URL is shared across all networks:
 
@@ -177,8 +175,6 @@ To disable a network, remove its `PAY_TO` value. To disable payments entirely, r
 |---------|-----|---------------|
 | Base Sepolia (testnet) | `eip155:84532` | `0x` + 40 hex chars |
 | Base (mainnet) | `eip155:8453` | `0x` + 40 hex chars |
-| Solana Devnet | `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` | Base58, 32-44 chars |
-| Solana Mainnet | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | Base58, 32-44 chars |
 
 Testnet networks are recommended for development. They work with the default x402.org facilitator and use testnet USDC (no real funds required).
 
@@ -196,8 +192,7 @@ When x402 is enabled, the following packages are added to the generated agent:
 - `@x402/express` (payment middleware)
 - `@x402/core` (protocol types and facilitator client)
 - `@payai/facilitator` (facilitator authentication)
-- `@x402/evm` (EVM payment scheme verification, included when Base networks are selected)
-- `@x402/svm` (Solana payment scheme verification, included when Solana networks are selected)
+- `@x402/evm` (EVM payment scheme verification)
 
 ## Build Mode
 

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.8.0 (2026-02-20)
+
+### Features
+
+- MetaMask deep link for mobile: on mobile browsers, "Connect MetaMask" becomes "Open in MetaMask" and redirects to MetaMask's in-app browser via universal link, where `window.ethereum` is injected and all existing payment/reputation flows work unchanged
+- Responsive mobile layout for the scaffolded agent chat UI: reduced paddings, scaled typography, larger touch targets for wallet buttons and feedback stars, and proper wrapping on narrow screens
+- Info bar (description, capabilities, reputation) now scrolls with the conversation instead of staying fixed, reclaiming vertical space on mobile
+
+### Breaking Changes
+
+- Removed Solana/SVM support: Phantom wallet integration, Solana network choices in `/new` wizard, `@x402/svm` dependency, Solana address validation, and Solana block explorer URLs have all been removed. x402 payments are now EVM-only (Base Sepolia and Base mainnet).
+
 ## 1.7.1 (2026-02-19)
 
 ### Features
