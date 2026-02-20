@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.9.0 (2026-02-20)
+
+### Features
+
+- Streaming responses in `/build` mode: AI responses stream token-by-token with real-time display instead of waiting for the full response
+- Auto-rebuild after code changes: `/build` automatically runs `npm install` (when `package.json` changed) and `npm run build` after applying file changes, with build errors fed back to the AI for self-correction (up to 2 retries)
+- Agent-kit type awareness: the build mode coding agent now receives `@wardenprotocol/agent-kit` type definitions from `node_modules` as context, preventing hallucinated APIs
+- Persistent build config: LLM provider, model, and API key stored in `~/.warden/config.json` instead of per-project, shared across all agent projects
+- `/model` command in build mode: switch AI provider, model, and API key without leaving the session (clears conversation history for the new model)
+
+### Fixes
+
+- Fixed readline prompt showing stale text after spinner animations in `/build` mode
+- Fixed generated README template using `npm run agent` instead of `npm start`
+- Fixed OpenAI model choices using Codex models (Responses API only) instead of Chat Completions-compatible models (o3, GPT-4.1, o4-mini)
+
 ## 1.8.0 (2026-02-20)
 
 ### Features
