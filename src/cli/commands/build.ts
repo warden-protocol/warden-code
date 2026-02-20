@@ -68,24 +68,14 @@ export async function readAgentUrl(projectDir: string): Promise<string | null> {
 const MODEL_CHOICES = {
   openai: [
     {
-      value: "o3",
-      name: "o3",
-      description: "Reasoning model, best for complex coding tasks",
-    },
-    {
-      value: "gpt-4.1",
-      name: "GPT-4.1",
-      description: "Fast and capable, great for most coding tasks",
-    },
-    {
-      value: "o4-mini",
-      name: "o4-mini",
-      description: "Fast reasoning model, cost-efficient",
+      value: "gpt-5.2-codex",
+      name: "GPT-5.2 Codex",
+      description: "Frontier coding model with strong reasoning",
     },
     {
       value: "custom",
       name: "Other",
-      description: "Enter a model name manually",
+      description: "Enter a model name manually (e.g. o3, gpt-4.1)",
     },
   ],
   anthropic: [
@@ -123,7 +113,7 @@ async function setupWizard(currentConfig?: BuildConfig | null): Promise<BuildCon
       {
         value: "openai" as const,
         name: "OpenAI",
-        description: "o3, GPT-4.1, o4-mini",
+        description: "GPT-5.2 Codex",
       },
       {
         value: "anthropic" as const,
