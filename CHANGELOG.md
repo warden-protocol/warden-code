@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.11.0 (2026-02-20)
+
+### Features
+
+- `/register` command: register agents on-chain via the ERC-8004 Identity Registry across 30 supported EVM chains (14 testnets, 16 mainnets). Handles NFT minting, agent URI setting, and local registration file updates.
+- `/activate` and `/deactivate` commands: toggle agent active status on-chain across all registered chains simultaneously, with per-chain transaction reporting and partial failure handling.
+- Pre-registration validation: checks agent name, description, URL, and skills quality before on-chain registration. Missing fields block registration; quality warnings prompt for confirmation.
+- Registration services: scaffolded `agent-registration.json` now includes A2A (with `a2aSkills`), Web, and OASF services. OASF skill paths are auto-populated from agent skills at scaffold time.
+
+### Fixes
+
+- Agent card template now includes `defaultInputModes` and `defaultOutputModes` as required by A2A v0.3.0
+- Fixed A2A service version in registration template from `0.5.0` to `0.3.0`
+- Removed non-standard `multiTurn` field from agent card capabilities, type definitions, scaffolder, probe, and frontend
+- Smart agent URL suggestion in `/config` server editor: port 443 suggests `https://` without port, port 80 suggests `http://` without port, other ports include the port number
+
+### Improvements
+
+- Consolidated dual `agent-registration.json` files into single canonical path at `.well-known/agent-registration.json`
+- Registration endpoint updates now iterate services by name (A2A, Web, OASF) instead of hardcoding array index
+
 ## 1.10.1 (2026-02-20)
 
 ### Fixes

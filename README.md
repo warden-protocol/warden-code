@@ -32,6 +32,9 @@ This launches an interactive CLI where you can create new agents.
 | `/build [path]` | Enter AI-powered build mode to modify your agent via chat |
 | `/chat <url>` | Chat with a running agent via A2A or LangGraph |
 | `/config [path] [show]` | View and edit agent configuration (identity, server, skills, payments) |
+| `/register [path]` | Register agent on-chain via ERC-8004 Identity Registry |
+| `/activate [path]` | Activate a registered agent on all chains |
+| `/deactivate [path]` | Deactivate a registered agent on all chains |
 | `/help` | Show available commands |
 | `/clear` | Clear the terminal |
 | `/exit` | Exit the CLI |
@@ -43,7 +46,7 @@ Run `/new` to start the agent creation wizard:
 1. **Agent name** - a name for your agent
 2. **Description** - what your agent does
 3. **Model** - Echo (just a demo that echoes input) or OpenAI (GPT-powered)
-4. **Capability** - Streaming or Multi-turn conversations
+4. **Capability** - Streaming or Standard (response arrives all at once)
 5. **Skills** - Define agent capabilities (optional)
 6. **x402 Payments** - Optionally gate requests behind per-request USDC payments (see [x402 Payments](#x402-payments) below)
 
@@ -56,9 +59,9 @@ After generation, your agent will be ready at `src/agent.ts`.
 | Model | Description |
 |----------|-------------|
 | **Echo + Streaming** | Minimal streaming agent that echoes input |
-| **Echo + Multi-turn** | Minimal multi-turn conversation agent |
+| **Echo + Standard** | Minimal agent that echoes input (non-streaming) |
 | **OpenAI + Streaming** | GPT-powered agent with streaming responses |
-| **OpenAI + Multi-turn** | GPT-powered agent with conversation history |
+| **OpenAI + Standard** | GPT-powered agent with conversation history (non-streaming) |
 
 All options use `AgentServer` from `@wardenprotocol/agent-kit`, which exposes both:
 - **A2A Protocol**
@@ -74,7 +77,6 @@ my-agent/
 │   └── payments.ts   # x402 payment setup (only when payments enabled)
 ├── public/
 │   ├── index.html    # Chat front-end (auto-loads agent card, skills, x402 wallets)
-│   ├── agent-registration.json   # ERC-8004 registration metadata
 │   └── .well-known/
 │       ├── agent-card.json           # Agent identity, capabilities, skills (A2A)
 │       └── agent-registration.json   # ERC-8004 registration metadata
@@ -101,6 +103,16 @@ Every scaffolded agent includes a chat front-end at `http://localhost:3000/`. It
 
 When x402 payments are enabled, the front-end reads `agent-registration.json` on page load and shows a MetaMask wallet connect button. On mobile browsers, the button becomes "Open in MetaMask" and redirects to MetaMask's in-app browser via deep link. Payment transaction hashes in responses link to the appropriate block explorer.
 
+### Registration
+
+Run `/register` to register your agent on the [ERC-8004 Identity Registry](https://eips.ethereum.org/EIPS/eip-8004). This mints an agent NFT on your chosen chain and sets the agent URI pointing to your `agent-registration.json`. The CLI validates your configuration before registration (name, description, production URL, skills) and supports 30 EVM chains (14 testnets, 16 mainnets).
+
+After registration, `/activate` and `/deactivate` toggle the agent's `active` flag in the registration file and push the update to all registered chains.
+
+Pre-registration checks run automatically:
+- **Errors** (block registration): missing name, missing description, localhost URL
+- **Warnings** (require confirmation): no skills, short description, skills missing name or description
+
 ### Reputation
 
 When the agent's `agent-registration.json` has entries in `registrations[]`, the front-end enables ERC-8004 reputation features:
@@ -109,7 +121,7 @@ When the agent's `agent-registration.json` has entries in `registrations[]`, the
 - **Feedback submission**: each agent response shows a 5-star rating row; clicking a star submits `giveFeedback` to the ReputationRegistry on the cheapest available L2 (auto-switches MetaMask if needed)
 - **Self-rating prevention**: a pre-flight `isAuthorizedOrOwner` check prevents the MetaMask transaction popup when the agent owner tries to rate their own agent
 
-Reputation is purely front-end (no server changes). The `registrations[]` array in `agent-registration.json` drives everything. Fill it in after registering your agent on-chain via the [ERC-8004 contracts](https://github.com/erc-8004/erc-8004-contracts). Each entry has the format:
+Reputation is purely front-end (no server changes). The `registrations[]` array in `agent-registration.json` drives everything and is populated automatically by the `/register` command. Each entry has the format:
 
 ```json
 {
