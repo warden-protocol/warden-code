@@ -656,6 +656,16 @@ describe("processTemplate", () => {
       expect(result).not.toContain("{{description}}");
     });
 
+    it("should support X402=false env var to disable payments at runtime", () => {
+      const content = "{{x402_listen}}";
+      const config = createMockConfig();
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain('process.env.X402 === "false"');
+      expect(result).toContain("x402 payments disabled (X402=false)");
+    });
+
     it("should not contain scheme registrations in {{x402_listen}} (moved to payments.ts)", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig({
