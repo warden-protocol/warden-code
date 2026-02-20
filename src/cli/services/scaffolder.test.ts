@@ -13,7 +13,7 @@ function createMockConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     name: "Test Agent",
     packageName: "test-agent",
     description: "A test agent",
-    template: "echo",
+    provider: "echo",
     capabilities: {
       streaming: false,
       multiTurn: true,
@@ -280,7 +280,7 @@ describe("processTemplate", () => {
   describe("model startup log replacement", () => {
     it("should replace {{model_startup_log}} with OpenAI log for openai template", () => {
       const content = "{{model_startup_log}}";
-      const config = createMockConfig({ template: "openai" });
+      const config = createMockConfig({ provider: "openai" });
 
       const result = processTemplate(content, config);
 
@@ -291,7 +291,7 @@ describe("processTemplate", () => {
 
     it("should replace {{model_startup_log}} with empty string for echo template", () => {
       const content = "before\n{{model_startup_log}}\nafter";
-      const config = createMockConfig({ template: "echo" });
+      const config = createMockConfig({ provider: "echo" });
 
       const result = processTemplate(content, config);
 
@@ -300,13 +300,15 @@ describe("processTemplate", () => {
   });
 
   describe("x402 replacement", () => {
-    it("should replace {{x402_imports}} with empty string when x402 is not configured", () => {
+    it("should always replace {{x402_imports}} with payments module import", () => {
       const content = "{{x402_imports}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
-      expect(result).toBe("");
+      expect(result).toContain("getPaymentConfig");
+      expect(result).toContain("createPaymentApp");
+      expect(result).toContain('./payments.js"');
     });
 
     it("should replace {{x402_imports}} with payments module import when x402 is configured", () => {
@@ -334,18 +336,19 @@ describe("processTemplate", () => {
       expect(result).not.toContain('import express from "express"');
     });
 
-    it("should replace {{x402_listen}} with createServer when x402 is not configured", () => {
+    it("should always replace {{x402_listen}} with payment-aware block including fallback", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
+      // Payment-aware path
+      expect(result).toContain("getPaymentConfig()");
+      expect(result).toContain("createPaymentApp(");
+      expect(result).toContain("app.listen(PORT");
+      // Fallback path for when no payments configured at runtime
       expect(result).toContain("createServer");
       expect(result).toContain("httpServer.listen(PORT");
-      expect(result).toContain("serveStatic");
-      expect(result).not.toContain("server.listen(PORT)");
-      expect(result).not.toContain("express");
-      expect(result).not.toContain("paymentMiddleware");
     });
 
     it("should replace {{x402_listen}} with payment delegation when x402 is configured", () => {
@@ -388,13 +391,17 @@ describe("processTemplate", () => {
       );
     });
 
-    it("should replace {{x402_dependencies}} with empty string when x402 is not configured", () => {
-      const content = "deps{{x402_dependencies}}";
+    it("should always replace {{x402_dependencies}} with express and x402 packages", () => {
+      const content = "{{x402_dependencies}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
-      expect(result).toBe("deps");
+      expect(result).toContain('"express"');
+      expect(result).toContain('"@x402/express"');
+      expect(result).toContain('"@x402/core"');
+      expect(result).toContain('"@payai/facilitator"');
+      expect(result).toContain('"@x402/evm"');
     });
 
     it("should replace {{x402_dependencies}} with express and x402 packages when configured", () => {
@@ -495,13 +502,17 @@ describe("processTemplate", () => {
       expect(JSON.parse(result)).toEqual(["evm"]);
     });
 
-    it("should replace {{x402_env_config}} with empty string when x402 is not configured", () => {
+    it("should always replace {{x402_env_config}} with all networks commented out when x402 is not configured", () => {
       const content = "{{x402_env_config}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
-      expect(result).toBe("");
+      expect(result).toContain("X402_FACILITATOR_URL=");
+      // All networks commented out (no active accepts)
+      expect(result).toContain("# X402_BASE_SEPOLIA_PAY_TO=");
+      expect(result).toContain("# X402_BASE_PAY_TO=");
+      expect(result).toContain("PAYAI_API_KEY_ID");
     });
 
     it("should replace {{x402_env_config}} with env vars when configured", () => {
@@ -535,17 +546,19 @@ describe("processTemplate", () => {
       );
       // No per-network facilitator URLs
       expect(result).not.toContain("X402_BASE_SEPOLIA_FACILITATOR_URL");
-      // No PayAI auth hint for testnet-only config
-      expect(result).not.toContain("PAYAI_API_KEY_ID");
+      // PayAI auth hint always included
+      expect(result).toContain("PAYAI_API_KEY_ID");
     });
 
-    it("should replace {{x402_env_setup}} with empty string when x402 is not configured", () => {
+    it("should always replace {{x402_env_setup}} with README section", () => {
       const content = "{{x402_env_setup}}";
       const config = createMockConfig();
 
       const result = processTemplate(content, config);
 
-      expect(result).toBe("");
+      expect(result).toContain("x402");
+      expect(result).toContain("USDC");
+      expect(result).toContain("X402_FACILITATOR_URL");
     });
 
     it("should replace {{x402_env_setup}} with README section when configured", () => {
@@ -693,14 +706,14 @@ describe("template integration (actual template files)", () => {
     name: "Echo Bot",
     packageName: "echo-bot",
     description: "Echoes back messages",
-    template: "echo",
+    provider: "echo",
   });
 
   const x402Config = createMockConfig({
     name: "Paid Agent",
     packageName: "paid-agent",
     description: "A premium agent",
-    template: "openai",
+    provider: "openai",
     x402: {
       accepts: [
         {
@@ -715,20 +728,20 @@ describe("template integration (actual template files)", () => {
   describe("server.ts.template", () => {
     const template = readTemplate("server.ts.template");
 
-    it("should produce valid output without x402", () => {
+    it("should always include payment infrastructure", () => {
       const result = processTemplate(template, echoConfig);
 
       expect(result).toContain('import "dotenv/config"');
       expect(result).toContain("AgentServer");
+      // Payment-aware path always present
+      expect(result).toContain("getPaymentConfig");
+      expect(result).toContain("createPaymentApp");
+      expect(result).toContain("app.listen(PORT");
+      // Fallback path always present
       expect(result).toContain("createServer");
       expect(result).toContain("httpServer.listen(PORT");
-      expect(result).toContain("serveStatic");
-      expect(result).toContain("PUBLIC_DIR");
-      expect(result).toContain("MIME_TYPES");
       expect(result).not.toContain("server.listen(PORT)");
       expect(result).not.toContain("{{");
-      expect(result).not.toContain("express");
-      expect(result).not.toContain("paymentMiddleware");
     });
 
     it("should delegate to payments module with x402", () => {
@@ -765,16 +778,19 @@ describe("template integration (actual template files)", () => {
   describe("package.json.template", () => {
     const template = readTemplate("package.json.template");
 
-    it("should produce valid JSON without x402", () => {
+    it("should always include x402 dependencies", () => {
       const result = processTemplate(template, echoConfig);
       const parsed = JSON.parse(result);
 
       expect(parsed.name).toBe("echo-bot");
       expect(parsed.dependencies).toHaveProperty("@wardenprotocol/agent-kit");
       expect(parsed.dependencies).toHaveProperty("dotenv");
-      expect(parsed.dependencies).not.toHaveProperty("express");
-      expect(parsed.dependencies).not.toHaveProperty("@x402/express");
-      expect(parsed.devDependencies).not.toHaveProperty("@types/express");
+      expect(parsed.dependencies).toHaveProperty("express");
+      expect(parsed.dependencies).toHaveProperty("@x402/express");
+      expect(parsed.dependencies).toHaveProperty("@x402/core");
+      expect(parsed.dependencies).toHaveProperty("@payai/facilitator");
+      expect(parsed.dependencies).toHaveProperty("@x402/evm");
+      expect(parsed.devDependencies).toHaveProperty("@types/express");
     });
 
     it("should produce valid JSON with x402 dependencies", () => {
@@ -802,12 +818,14 @@ describe("template integration (actual template files)", () => {
   describe("env.example.template", () => {
     const template = readTemplate("env.example.template");
 
-    it("should not include x402 vars when disabled", () => {
+    it("should always include x402 vars (commented out when not configured)", () => {
       const result = processTemplate(template, echoConfig);
 
       expect(result).toContain("HOST=localhost");
       expect(result).toContain("PORT=3000");
-      expect(result).not.toContain("X402_");
+      expect(result).toContain("X402_FACILITATOR_URL=");
+      expect(result).toContain("# X402_BASE_SEPOLIA_PAY_TO=");
+      expect(result).toContain("# X402_BASE_PAY_TO=");
     });
 
     it("should include x402 env vars when enabled", () => {
@@ -833,13 +851,13 @@ describe("template integration (actual template files)", () => {
   describe("README.md.template", () => {
     const template = readTemplate("README.md.template");
 
-    it("should not include x402 section when disabled", () => {
+    it("should always include x402 section", () => {
       const result = processTemplate(template, echoConfig);
 
       expect(result).toContain("# Echo Bot");
       expect(result).toContain("Echoes back messages");
-      expect(result).not.toContain("x402");
-      expect(result).not.toContain("X402_ENABLED");
+      expect(result).toContain("x402");
+      expect(result).toContain("X402_FACILITATOR_URL");
       expect(result).not.toContain("{{");
     });
 
@@ -906,27 +924,9 @@ describe("template integration (actual template files)", () => {
 });
 
 describe("buildPaymentsModule", () => {
-  it("should return null when x402 is not configured", () => {
-    const config = createMockConfig();
-    expect(buildPaymentsModule(config)).toBeNull();
-  });
+  it("should always return module content", () => {
+    const result = buildPaymentsModule();
 
-  it("should return module content when x402 is configured", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config);
-
-    expect(result).not.toBeNull();
     expect(result).toContain("getPaymentConfig");
     expect(result).toContain("createPaymentApp");
     expect(result).toContain("PaymentConfig");
@@ -934,19 +934,7 @@ describe("buildPaymentsModule", () => {
   });
 
   it("should include x402 package imports", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).toContain('import express from "express"');
     expect(result).toContain("@x402/express");
@@ -956,41 +944,16 @@ describe("buildPaymentsModule", () => {
   });
 
   it("should contain x402Networks lookup table", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).toContain("x402Networks");
     expect(result).toContain("BASE_SEPOLIA");
     expect(result).toContain("eip155:84532");
     expect(result).toContain("eip155:8453");
-    expect(result).not.toContain("solana:");
   });
 
   it("should contain payment middleware and CORS setup", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).toContain("paymentMiddleware");
     expect(result).toContain("x402ResourceServer");
@@ -1000,19 +963,7 @@ describe("buildPaymentsModule", () => {
   });
 
   it("should contain facilitator client with PayAI detection", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).toContain("HTTPFacilitatorClient");
     expect(result).toContain("createFacilitatorConfig");
@@ -1020,39 +971,14 @@ describe("buildPaymentsModule", () => {
     expect(result).toContain("payai.network");
   });
 
-  it("should contain scheme registration for EVM config", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+  it("should always include EVM scheme registration", () => {
+    const result = buildPaymentsModule();
 
     expect(result).toContain("registerExactEvmScheme");
-    expect(result).not.toContain("registerExactSvmScheme");
   });
 
   it("should contain route dispatch logic", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.01",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).toContain("isLangGraph");
     expect(result).toContain("/assistants");
@@ -1064,19 +990,7 @@ describe("buildPaymentsModule", () => {
   });
 
   it("should not contain hardcoded wallet addresses or prices", () => {
-    const config = createMockConfig({
-      x402: {
-        accepts: [
-          {
-            network: "eip155:84532",
-            payTo: "0x1234567890abcdef1234567890abcdef12345678",
-            price: "0.99",
-          },
-        ],
-      },
-    });
-
-    const result = buildPaymentsModule(config)!;
+    const result = buildPaymentsModule();
 
     expect(result).not.toContain("0x1234567890abcdef1234567890abcdef12345678");
     expect(result).not.toContain("0.99");

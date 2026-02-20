@@ -52,20 +52,18 @@ export function processTemplate(content: string, config: AgentConfig): string {
     .join(",\n  ");
 
   const modelStartupLog =
-    config.template === "openai"
+    config.provider === "openai"
       ? `const hasApiKey = !!process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   console.log(\`Model: \${model}\`);
   console.log(\`API Key: \${hasApiKey ? "configured" : "NOT SET"}\`);`
       : "";
 
-  const hasX402 = !!config.x402;
   const accepts = config.x402?.accepts ?? [];
+  const hasX402Config = accepts.length > 0;
   const hasEvm = accepts.some((a) => a.network.startsWith("eip155:"));
 
-  const x402Imports = hasX402
-    ? `import { getPaymentConfig, createPaymentApp } from "./payments.js";`
-    : "";
+  const x402Imports = `import { getPaymentConfig, createPaymentApp } from "./payments.js";`;
 
   // Shared block: create a custom HTTP server that serves static files
   // from public/ and delegates everything else to the A2A/LangGraph handlers.
@@ -99,8 +97,7 @@ httpServer.listen(PORT, () => {
   console.log(\`  Runs:       \${AGENT_URL}/runs\`);
 });`;
 
-  const x402Listen = hasX402
-    ? `const paymentConfig = getPaymentConfig();
+  const x402Listen = `const paymentConfig = getPaymentConfig();
 
 if (paymentConfig) {
   const app = createPaymentApp(
@@ -137,22 +134,11 @@ if (paymentConfig) {
   });
 } else {
   ${listenBlock}
-}`
-    : listenBlock;
+}`;
 
-  const x402Dependencies = hasX402
-    ? `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4"${hasEvm ? `,\n    "@x402/evm": "^2.3.0"` : ""}`
-    : "";
+  const x402Dependencies = `,\n    "express": "^4.21.0",\n    "@x402/express": "^2.3.0",\n    "@x402/core": "^2.3.0",\n    "@payai/facilitator": "^2.2.4",\n    "@x402/evm": "^2.3.0"`;
 
-  const x402DevDependencies = hasX402
-    ? `,\n    "@types/express": "^5.0.0"`
-    : "";
-
-  // Map network IDs to their env var prefix
-  const networkPrefixMap: Record<string, string> = {
-    "eip155:84532": "X402_BASE_SEPOLIA",
-    "eip155:8453": "X402_BASE",
-  };
+  const x402DevDependencies = `,\n    "@types/express": "^5.0.0"`;
 
   // Generate env config lines for the configured networks (active)
   // plus commented-out lines for all other networks (available to enable)
@@ -190,27 +176,16 @@ if (paymentConfig) {
     );
   }
 
-  if (hasX402 && hasMainnet) {
-    x402EnvLines.push(
-      "# Facilitator authentication (optional, for paid tiers)",
-      "# PayAI: set PAYAI_API_KEY_ID and PAYAI_API_KEY_SECRET",
-      "# Get credentials at https://merchant.payai.network",
-      "",
-    );
-  }
+  x402EnvLines.push(
+    "# Facilitator authentication (optional, for paid tiers)",
+    "# PayAI: set PAYAI_API_KEY_ID and PAYAI_API_KEY_SECRET",
+    "# Get credentials at https://merchant.payai.network",
+    "",
+  );
 
-  const x402EnvConfig = hasX402 ? x402EnvLines.join("\n") + "\n" : "";
+  const x402EnvConfig = x402EnvLines.join("\n") + "\n";
 
-  const activeNetworkList = accepts
-    .map((a) => {
-      const prefix = networkPrefixMap[a.network] || a.network;
-      return `- \`${prefix}_PAY_TO\` / \`${prefix}_PRICE\` / \`${prefix}_NETWORK\``;
-    })
-    .join("\n");
-
-  const x402EnvSetup = hasX402
-    ? `## x402 Payments\n\nThis agent uses [x402](https://x402.org) to charge per request using USDC.\n\nPayment configuration is read from environment variables at startup:\n\n- \`X402_FACILITATOR_URL\` \u2014 payment facilitator endpoint (shared across all networks)\n- \`X402_<NETWORK>_PAY_TO\` \u2014 wallet address to receive payments (set to enable, remove to disable)\n- \`X402_<NETWORK>_PRICE\` \u2014 price per request in USDC (default: 0.01)\n- \`X402_<NETWORK>_NETWORK\` \u2014 network identifier\n\nAvailable network prefixes: \`X402_BASE_SEPOLIA\`, \`X402_BASE\`, \`X402_SOL_DEVNET\`, \`X402_SOL\`.\n\n### Facilitator\n\nSet \`X402_FACILITATOR_URL\` in \`.env\` to your facilitator of choice. The [PayAI facilitator](https://facilitator.payai.network) offers 1,000 free settlements per month. For higher volumes, create a merchant account at [merchant.payai.network](https://merchant.payai.network) and set \`PAYAI_API_KEY_ID\` and \`PAYAI_API_KEY_SECRET\` in your \`.env\`. Authentication is handled automatically.\n\nTo disable payments entirely, remove all \`PAY_TO\` values from \`.env\`.\nTo add a network, uncomment its section in \`.env\` and set the pay-to address.\n\n`
-    : "";
+  const x402EnvSetup = `## x402 Payments\n\nThis agent uses [x402](https://x402.org) to charge per request using USDC.\n\nPayment configuration is read from environment variables at startup:\n\n- \`X402_FACILITATOR_URL\` \u2014 payment facilitator endpoint (shared across all networks)\n- \`X402_<NETWORK>_PAY_TO\` \u2014 wallet address to receive payments (set to enable, remove to disable)\n- \`X402_<NETWORK>_PRICE\` \u2014 price per request in USDC (default: 0.01)\n- \`X402_<NETWORK>_NETWORK\` \u2014 network identifier\n\nAvailable network prefixes: \`X402_BASE_SEPOLIA\`, \`X402_BASE\`, \`X402_SOL_DEVNET\`, \`X402_SOL\`.\n\n### Facilitator\n\nSet \`X402_FACILITATOR_URL\` in \`.env\` to your facilitator of choice. The [PayAI facilitator](https://facilitator.payai.network) offers 1,000 free settlements per month. For higher volumes, create a merchant account at [merchant.payai.network](https://merchant.payai.network) and set \`PAYAI_API_KEY_ID\` and \`PAYAI_API_KEY_SECRET\` in your \`.env\`. Authentication is handled automatically.\n\nTo disable payments entirely, remove all \`PAY_TO\` values from \`.env\`.\nTo add a network, uncomment its section in \`.env\` and set the pay-to address.\n\n`;
 
   // x402 structural placeholders are replaced first so their content
   // (which may contain {{name}}, {{description}}, {{model_startup_log}})
@@ -235,7 +210,7 @@ if (paymentConfig) {
       String(config.capabilities.multiTurn),
     )
     .replace(/\{\{model_startup_log\}\}/g, modelStartupLog)
-    .replace(/\{\{x402_support\}\}/g, String(hasX402))
+    .replace(/\{\{x402_support\}\}/g, String(hasX402Config))
     .replace(
       /\{\{x402_networks\}\}/g,
       JSON.stringify([hasEvm && "evm"].filter(Boolean)),
@@ -243,17 +218,17 @@ if (paymentConfig) {
     .replace(/\{\{packageName\}\}/g, config.packageName)
     .replace(
       /\{\{model_dependencies\}\}/g,
-      config.template === "openai" ? `,\n    "openai": "^4.69.0"` : "",
+      config.provider === "openai" ? `,\n    "openai": "^4.69.0"` : "",
     )
     .replace(
       /\{\{env_setup\}\}/g,
-      config.template === "openai"
+      config.provider === "openai"
         ? `Copy the example environment file and configure your API key:\n\n\`\`\`bash\ncp .env.example .env\n\`\`\`\n\nEdit \`.env\` and set your \`OPENAI_API_KEY\`.\n\n`
         : "",
     )
     .replace(
       /\{\{env_model_config\}\}/g,
-      config.template === "openai"
+      config.provider === "openai"
         ? `OPENAI_API_KEY=your-api-key-here\nOPENAI_MODEL=gpt-4o-mini\n`
         : "",
     );
@@ -264,19 +239,14 @@ if (paymentConfig) {
  */
 function getTemplateDirName(config: AgentConfig): string {
   const capability = config.capabilities.streaming ? "streaming" : "multiturn";
-  return `${config.template}-${capability}`;
+  return `${config.provider}-${capability}`;
 }
 
 /**
  * Build the payments.ts module content for agents with x402 enabled.
  * Returns null when x402 is not configured.
  */
-export function buildPaymentsModule(config: AgentConfig): string | null {
-  if (!config.x402) return null;
-
-  const accepts = config.x402.accepts;
-  const hasEvm = accepts.some((a) => a.network.startsWith("eip155:"));
-
+export function buildPaymentsModule(): string {
   const imports = [
     `import { resolve } from "node:path";`,
     `import express from "express";`,
@@ -285,9 +255,7 @@ export function buildPaymentsModule(config: AgentConfig): string | null {
     `import { HTTPFacilitatorClient } from "@x402/core/server";`,
     `import { createFacilitatorConfig } from "@payai/facilitator";`,
     `import type { Network } from "@x402/core/types";`,
-    ...(hasEvm
-      ? [`import { registerExactEvmScheme } from "@x402/evm/exact/server";`]
-      : []),
+    `import { registerExactEvmScheme } from "@x402/evm/exact/server";`,
   ].join("\n");
 
   return `${imports}
@@ -347,7 +315,8 @@ export function createPaymentApp(
   const resourceServer = new x402ResourceServer(facilitatorClient);
 
   const hasEvm = config.accepts.some((a) => a.network.startsWith("eip155:"));
-${hasEvm ? `  if (hasEvm) registerExactEvmScheme(resourceServer);\n` : ""}
+  if (hasEvm) registerExactEvmScheme(resourceServer);
+
   const app = express();
 
   // Serve static files from public/ (before CORS/payment middleware)
@@ -428,14 +397,11 @@ export async function scaffoldAgent(
   await writeFile(path.join(targetDir, "src", "agent.ts"), agentContent);
   await writeFile(path.join(targetDir, "src", "server.ts"), serverContent);
 
-  // Write payments module when x402 is enabled
-  const paymentsContent = buildPaymentsModule(config);
-  if (paymentsContent) {
-    await writeFile(
-      path.join(targetDir, "src", "payments.ts"),
-      paymentsContent,
-    );
-  }
+  // Write payments module (always included; runtime guards handle activation)
+  await writeFile(
+    path.join(targetDir, "src", "payments.ts"),
+    buildPaymentsModule(),
+  );
 
   // Write package.json
   const pkgTemplate = await readSharedTemplate("package.json.template");
