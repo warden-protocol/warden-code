@@ -1,6 +1,8 @@
+import { exec } from "node:child_process";
 import * as readline from "node:readline";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { promisify } from "node:util";
 import { select, password, input } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
@@ -18,11 +20,14 @@ import {
 } from "../services/ai/provider.js";
 import {
   buildProjectContext,
-  parseResponse,
   applyChanges,
   SYSTEM_PROMPT,
+  type FileChange,
 } from "../services/ai/context.js";
+import { StreamParser, type StreamEvent } from "../services/ai/stream-parser.js";
 import { runChatSession } from "./chat.js";
+
+const execAsync = promisify(exec);
 
 const promptTheme = {
   style: {
@@ -63,14 +68,19 @@ export async function readAgentUrl(projectDir: string): Promise<string | null> {
 const MODEL_CHOICES = {
   openai: [
     {
-      value: "gpt-5.2-codex",
-      name: "GPT-5.2 Codex",
-      description: "Latest — frontier coding with strong reasoning",
+      value: "o3",
+      name: "o3",
+      description: "Reasoning model, best for complex coding tasks",
     },
     {
-      value: "gpt-5.1-codex",
-      name: "GPT-5.1 Codex",
-      description: "Stable — great balance of speed and quality",
+      value: "gpt-4.1",
+      name: "GPT-4.1",
+      description: "Fast and capable, great for most coding tasks",
+    },
+    {
+      value: "o4-mini",
+      name: "o4-mini",
+      description: "Fast reasoning model, cost-efficient",
     },
     {
       value: "custom",
@@ -82,12 +92,12 @@ const MODEL_CHOICES = {
     {
       value: "claude-opus-4-6",
       name: "Claude Opus 4.6",
-      description: "Most intelligent — best for complex coding and reasoning",
+      description: "Most intelligent, best for complex coding and reasoning",
     },
     {
       value: "claude-sonnet-4-5-20250929",
       name: "Claude Sonnet 4.5",
-      description: "Fast and capable — great balance of speed and quality",
+      description: "Fast and capable, great balance of speed and quality",
     },
     {
       value: "custom",
@@ -95,9 +105,9 @@ const MODEL_CHOICES = {
       description: "Enter a model name manually",
     },
   ],
-} as const;
+} as const;;
 
-async function setupWizard(cwd: string): Promise<BuildConfig> {
+async function setupWizard(): Promise<BuildConfig> {
   console.log();
   console.log(chalk.bold("Build Mode Setup"));
   console.log(
@@ -113,7 +123,7 @@ async function setupWizard(cwd: string): Promise<BuildConfig> {
       {
         value: "openai" as const,
         name: "OpenAI",
-        description: "GPT-5.2 Codex, GPT-5.1 Codex",
+        description: "o3, GPT-4.1, o4-mini",
       },
       {
         value: "anthropic" as const,
@@ -144,12 +154,46 @@ async function setupWizard(cwd: string): Promise<BuildConfig> {
   });
 
   const config: BuildConfig = { provider, model, apiKey };
-  await writeConfig(cwd, config);
+  await writeConfig(config);
   return config;
 }
 
 function chatPrompt(): string {
   return chalk.rgb(199, 255, 142)("build") + chalk.dim("> ");
+}
+
+async function rebuildProject(
+  projectDir: string,
+  changedFiles: string[],
+): Promise<string | null> {
+  if (changedFiles.some((f) => f === "package.json")) {
+    const installSpinner = ora({
+      text: "Installing dependencies...",
+      discardStdin: false,
+    }).start();
+    try {
+      await execAsync("npm install", { cwd: projectDir });
+      installSpinner.succeed("Dependencies installed!");
+    } catch (error) {
+      installSpinner.fail("Install failed");
+      const err = error as { stderr?: string; stdout?: string };
+      return err.stderr || err.stdout || "npm install failed";
+    }
+  }
+
+  const buildSpinner = ora({
+    text: "Building project...",
+    discardStdin: false,
+  }).start();
+  try {
+    await execAsync("npm run build", { cwd: projectDir });
+    buildSpinner.succeed("Build succeeded!");
+    return null;
+  } catch (error) {
+    buildSpinner.fail("Build failed");
+    const err = error as { stderr?: string; stdout?: string };
+    return err.stderr || err.stdout || "Build failed";
+  }
 }
 
 export const buildCommand: SlashCommand = {
@@ -176,12 +220,12 @@ export const buildCommand: SlashCommand = {
     }
 
     // Get or create config
-    let config = await readConfig(projectDir);
+    let config = await readConfig();
     if (!config) {
       try {
-        config = await setupWizard(projectDir);
+        config = await setupWizard();
         console.log();
-        context.log.success("Configuration saved to .warden/config.json");
+        context.log.success("Configuration saved to ~/.warden/config.json");
       } catch (error) {
         if (error instanceof Error && error.name === "ExitPromptError") {
           console.log();
@@ -193,14 +237,14 @@ export const buildCommand: SlashCommand = {
     }
 
     // Create provider
-    const provider = createProvider(config);
+    let provider = createProvider(config);
 
     console.log();
     console.log(chalk.bold("Build Mode") + chalk.dim(` (${config.model})`));
     console.log(
       chalk.dim(
         "Describe what you want your agent to do and the AI will edit your code.\n" +
-          "Type /chat to talk to your running agent, or /exit to leave.\n",
+          "Type /model to switch AI, /chat to talk to your agent, or /exit to leave.\n",
       ),
     );
 
@@ -229,6 +273,11 @@ export const buildCommand: SlashCommand = {
       new Promise((resolve, reject) => {
         const onClose = () => reject(new Error("closed"));
         rl.once("close", onClose);
+        // Clear readline's internal line buffer so stale text from
+        // prior input (confused by ora's ANSI writes) never leaks
+        // into the new prompt.
+        readline.clearLine(process.stdout, 0);
+        readline.cursorTo(process.stdout, 0);
         rl.question(prompt, (answer) => {
           rl.removeListener("close", onClose);
           resolve(answer);
@@ -256,6 +305,29 @@ export const buildCommand: SlashCommand = {
         console.log();
         context.log.dim("Exited build mode.");
         break;
+      }
+
+      // ── /model sub-command ─────────────────────────────────
+      if (trimmed === "/model") {
+        rl.close();
+        try {
+          config = await setupWizard();
+          provider = createProvider(config);
+          messages.length = 0;
+          console.log();
+          context.log.success(`Switched to ${config.model}`);
+          console.log();
+        } catch (error) {
+          if (error instanceof Error && error.name === "ExitPromptError") {
+            console.log();
+            context.log.dim("Cancelled.");
+            console.log();
+          } else {
+            throw error;
+          }
+        }
+        rl = createRl();
+        continue;
       }
 
       // ── /chat sub-command ──────────────────────────────────
@@ -332,31 +404,138 @@ export const buildCommand: SlashCommand = {
       messages.push({ role: "user", content: trimmed });
 
       const spinner = ora({ text: "Thinking...", discardStdin: false }).start();
+      let firstToken = true;
+      const parser = new StreamParser();
+      const fileChanges: FileChange[] = [];
+
+      const handleEvent = (event: StreamEvent, changes: FileChange[]): void => {
+        switch (event.type) {
+          case "text":
+            process.stdout.write(event.content);
+            break;
+          case "file_start":
+            console.log();
+            process.stdout.write(
+              chalk.dim(`  Generating ${event.filePath}...`),
+            );
+            break;
+          case "file_end":
+            readline.clearLine(process.stdout, 0);
+            readline.cursorTo(process.stdout, 0);
+            changes.push({
+              filePath: event.filePath,
+              content: event.content,
+            });
+            break;
+        }
+      };
 
       try {
-        const response = await provider.chat(messages);
-        spinner.stop();
-
-        const { text, changes } = parseResponse(response);
-
-        // Apply file changes
-        if (changes.length > 0) {
-          const applied = await applyChanges(projectDir, changes);
-          console.log();
-          for (const file of applied) {
-            context.log.success(`Updated ${file}`);
+        for await (const delta of provider.chatStream(messages)) {
+          if (firstToken) {
+            spinner.stop();
+            console.log();
+            firstToken = false;
+          }
+          for (const event of parser.feed(delta)) {
+            handleEvent(event, fileChanges);
           }
         }
 
-        // Show explanation
-        if (text) {
+        // Flush remaining parser state
+        for (const event of parser.flush()) {
+          handleEvent(event, fileChanges);
+        }
+
+        // Apply file changes to disk
+        if (fileChanges.length > 0) {
           console.log();
-          console.log(text);
+          const applied = await applyChanges(projectDir, fileChanges);
+          for (const file of applied) {
+            context.log.success(`Updated ${file}`);
+          }
+          console.log();
+
+          messages.push({
+            role: "assistant",
+            content: parser.getFullResponse(),
+          });
+
+          // Rebuild project; on failure, ask the AI to fix (up to 2 retries)
+          let buildError = await rebuildProject(projectDir, applied);
+          let retries = 0;
+          const MAX_BUILD_RETRIES = 2;
+
+          while (buildError && retries < MAX_BUILD_RETRIES) {
+            retries++;
+            console.log();
+            messages.push({
+              role: "user",
+              content: `The build failed with these errors. Please fix them:\n\n${buildError}`,
+            });
+
+            const fixSpinner = ora({
+              text: "Fixing build errors...",
+              discardStdin: false,
+            }).start();
+            let fixFirstToken = true;
+            const fixParser = new StreamParser();
+            const fixChanges: FileChange[] = [];
+
+            for await (const delta of provider.chatStream(messages)) {
+              if (fixFirstToken) {
+                fixSpinner.stop();
+                console.log();
+                fixFirstToken = false;
+              }
+              for (const event of fixParser.feed(delta)) {
+                handleEvent(event, fixChanges);
+              }
+            }
+            for (const event of fixParser.flush()) {
+              handleEvent(event, fixChanges);
+            }
+
+            if (fixChanges.length > 0) {
+              console.log();
+              const fixApplied = await applyChanges(projectDir, fixChanges);
+              for (const file of fixApplied) {
+                context.log.success(`Updated ${file}`);
+              }
+              console.log();
+            }
+
+            messages.push({
+              role: "assistant",
+              content: fixParser.getFullResponse(),
+            });
+
+            const allChanged = [
+              ...new Set([
+                ...applied,
+                ...fixChanges.map((c) => c.filePath),
+              ]),
+            ];
+            buildError = await rebuildProject(projectDir, allChanged);
+          }
+
+          if (buildError) {
+            context.log.error(
+              "Build still failing after retries. Check the errors above.",
+            );
+          }
+        } else {
+          messages.push({
+            role: "assistant",
+            content: parser.getFullResponse(),
+          });
         }
 
         console.log();
       } catch (error) {
-        spinner.fail("Request failed");
+        if (firstToken) {
+          spinner.fail("Request failed");
+        }
         context.log.error(formatAPIError(error));
         if (isNonRecoverableError(error)) {
           rl.close();

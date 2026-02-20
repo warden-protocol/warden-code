@@ -27,4 +27,29 @@ export class AnthropicProvider implements AIProvider {
     const textBlock = response.content.find((block) => block.type === "text");
     return textBlock && "text" in textBlock ? textBlock.text : "";
   }
+
+  async *chatStream(messages: Message[]): AsyncIterable<string> {
+    const systemMessage = messages.find((m) => m.role === "system");
+    const nonSystemMessages = messages.filter((m) => m.role !== "system");
+
+    const stream = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 8192,
+      stream: true,
+      system: systemMessage?.content || "",
+      messages: nonSystemMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+    });
+
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        yield event.delta.text;
+      }
+    }
+  }
 }

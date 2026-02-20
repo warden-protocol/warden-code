@@ -3,11 +3,16 @@ import * as path from "node:path";
 import { writeFile } from "../project.js";
 
 const PROJECT_FILES = [
-  "agent-card.json",
   "src/agent.ts",
   "src/server.ts",
   "package.json",
   ".env.example",
+];
+
+const AGENT_KIT_TYPES = [
+  "node_modules/@wardenprotocol/agent-kit/dist/a2a/types.d.ts",
+  "node_modules/@wardenprotocol/agent-kit/dist/a2a/server.d.ts",
+  "node_modules/@wardenprotocol/agent-kit/dist/langgraph/dual-server.d.ts",
 ];
 
 export async function buildProjectContext(projectDir: string): Promise<string> {
@@ -19,6 +24,15 @@ export async function buildProjectContext(projectDir: string): Promise<string> {
       sections.push(`--- ${file} ---\n${content}`);
     } catch {
       // File may not exist, skip it
+    }
+  }
+
+  for (const file of AGENT_KIT_TYPES) {
+    try {
+      const content = await fs.readFile(path.join(projectDir, file), "utf-8");
+      sections.push(`--- ${file} ---\n${content}`);
+    } catch {
+      // Package may not be installed yet, skip
     }
   }
 
@@ -72,7 +86,7 @@ export async function applyChanges(
 
 export const SYSTEM_PROMPT = `You are an expert AI agent developer. You help users build and modify agents built with the @wardenprotocol/agent-kit package.
 
-The user has a scaffolded agent project. You will receive the current project files as context.
+The user has a scaffolded agent project. You will receive the current project files as context, including the agent-kit type definitions from node_modules. Always reference these type definitions before writing or modifying code. Do NOT invent APIs that are not present in the type definitions.
 
 When the user asks you to make changes, respond with:
 1. A brief explanation of what you're changing and why
@@ -86,9 +100,10 @@ Format code changes like this:
 Important rules:
 - Always include the COMPLETE file content in code blocks, not just the changed parts
 - Only include code blocks for files you are actually modifying
-- The agent handler is in src/agent.ts — this is the main file users work on
-- The server setup is in src/server.ts — only modify this if the user specifically asks for server changes
+- The agent handler is in src/agent.ts (main file users work on)
+- The server setup is in src/server.ts (only modify if the user specifically asks for server changes)
 - If the user needs new npm packages, mention them and update package.json
 - Keep code clean, well-typed, and following TypeScript best practices
 - The project uses ES modules ("type": "module") with NodeNext module resolution
+- After you produce file changes, the project is automatically rebuilt (npm run build = tsc). If the build fails, the errors will be sent back to you for correction.
 `;

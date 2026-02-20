@@ -9,6 +9,7 @@ export interface Message {
 
 export interface AIProvider {
   chat(messages: Message[]): Promise<string>;
+  chatStream(messages: Message[]): AsyncIterable<string>;
 }
 
 export function createProvider(config: BuildConfig): AIProvider {
