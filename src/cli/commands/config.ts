@@ -146,9 +146,13 @@ async function editServer(
     theme: promptTheme,
   });
 
+  const suggestedUrl = `http://${host}:${port}`;
   const agentUrl = await input({
     message: "Agent URL:",
-    default: config.server.agentUrl,
+    default:
+      host !== config.server.host || port !== config.server.port
+        ? suggestedUrl
+        : config.server.agentUrl,
     theme: promptTheme,
   });
 
