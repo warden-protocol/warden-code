@@ -31,6 +31,7 @@ This launches an interactive CLI where you can create new agents.
 | `/new [path]` | Create a new agent interactively [optionally provide a path] |
 | `/build [path]` | Enter AI-powered build mode to modify your agent via chat |
 | `/chat <url>` | Chat with a running agent via A2A or LangGraph |
+| `/config [path] [show]` | View and edit agent configuration (identity, server, skills, payments) |
 | `/help` | Show available commands |
 | `/clear` | Clear the terminal |
 | `/exit` | Exit the CLI |
@@ -121,17 +122,16 @@ The `public/` directory is served as static files. Add any additional assets (ic
 
 ## x402 Payments
 
-Agents can optionally charge per request using [x402](https://x402.org), Coinbase's HTTP 402 payment protocol. When enabled during `/new`, the generated agent wraps its server with Express and the `@x402/express` middleware. Clients that support x402 (such as `@x402/fetch`) automatically handle the payment flow: the server returns HTTP 402 with payment requirements, the client signs a USDC transaction, and the server verifies payment before processing the request.
+Every scaffolded agent includes [x402](https://x402.org) payment infrastructure (Coinbase's HTTP 402 payment protocol). Payments are disabled by default and activate when you configure payment environment variables. Clients that support x402 (such as `@x402/fetch`) automatically handle the payment flow: the server returns HTTP 402 with payment requirements, the client signs a USDC transaction, and the server verifies payment before processing the request.
 
-### How it works
+### Enabling payments
 
-1. During `/new`, choose "Enable x402 payments" when prompted
-2. Select a payment network (Base Sepolia testnet or Base mainnet)
-3. Provide the EVM wallet address for that network
-4. Set a price per request (default: `0.01`)
-5. Optionally add more networks
+You can configure payments in two ways:
 
-The wizard generates a `.env` file with per-network payment variables. At runtime, the server reads these variables and conditionally enables the Express + x402 middleware layer. When no `PAY_TO` variables are set, the agent falls back to the standard `AgentServer.listen()` with no Express dependency.
+1. **During `/new`**: choose "Enable x402 payments" when prompted, select a network, wallet, and price
+2. **After scaffolding**: run `/config`, select "Payments", and add a payment network
+
+At runtime, the server reads payment variables from `.env`. When no `PAY_TO` variables are set, the agent starts without the payment middleware.
 
 ### Configuration
 

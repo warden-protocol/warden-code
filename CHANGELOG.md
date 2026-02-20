@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.10.0 (2026-02-20)
+
+### Features
+
+- `/config` command: interactive viewer and editor for all agent configuration (identity, server, skills, payments) from the CLI, with `/config show` for read-only display
+- Skills editing: add, edit, and remove agent skills via `/config` with automatic OASF tagging
+- All agents now scaffold with x402 payment infrastructure; payments are disabled by default and can be enabled later via `/config` or `.env` without re-scaffolding
+
+### Fixes
+
+- Build mode no longer exits on API errors (401, 403, 500, etc.); the error is displayed and the user stays in the build loop with guidance to use `/model`
+
+### Improvements
+
+- Renamed "Template" to "Provider" in the `/new` wizard for clarity
+- Error messages for 401, 403, and 404 API errors now reference `/model` for in-session recovery
+
 ## 1.9.3 (2026-02-20)
 
 ### Features
