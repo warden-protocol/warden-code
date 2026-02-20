@@ -112,6 +112,9 @@ const httpServer = createServer((req, res) => {
 httpServer.listen(PORT, () => {
   {{model_startup_log}}
   console.log(\`{{name}} (Dual Protocol)\`);
+  if (process.env.X402 === "false") {
+    console.log("x402 payments disabled (X402=false)");
+  }
   console.log(\`Server: \${AGENT_URL}\`);
   console.log(\`Frontend: \${AGENT_URL}/\`);
   console.log();
@@ -126,7 +129,7 @@ httpServer.listen(PORT, () => {
   console.log(\`  Runs:       \${AGENT_URL}/runs\`);
 });`;
 
-  const x402Listen = `const paymentConfig = getPaymentConfig();
+  const x402Listen = `const paymentConfig = process.env.X402 === "false" ? null : getPaymentConfig();
 
 if (paymentConfig) {
   const app = createPaymentApp(

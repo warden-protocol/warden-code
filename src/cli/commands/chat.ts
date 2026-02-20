@@ -45,6 +45,8 @@ function displayAgentInfo(info: AgentInfo): void {
 function formatAgentError(error: unknown): string {
   if (error instanceof AgentRequestError) {
     const { status, body } = error;
+    if (status === 402)
+      return "This agent requires x402 payment.\nTo test without payments, restart your agent with: X402=false npm start";
     if (status === 404)
       return "Agent endpoint not found. Is the agent running?";
     if (status === 500) return `Agent internal error: ${body.slice(0, 200)}`;
