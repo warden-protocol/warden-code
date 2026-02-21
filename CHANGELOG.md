@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.13.0 (2026-02-21)
+
+### Features
+
+- API key authentication for non-x402 agents: scaffolded agents generate a `wdn_`-prefixed Bearer token, stored in `.env`, that protects both A2A and LangGraph POST endpoints via `authenticateRequest()` middleware
+- `/chat` handles 401 responses by prompting for the API key, recreating the client with auth, and retrying the message
+
+### Fixes
+
+- Fixed build mode input freeze after `/chat` probe failure: stdin was left paused when the chat session exited early without creating its own readline
+
+### Improvements
+
+- `/new` command now appears first in the available commands list
+- Echo template response prefix changed from "Echo:" to "Agent:"
+
 ## 1.12.0 (2026-02-20)
 
 ### Features

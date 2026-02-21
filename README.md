@@ -52,7 +52,7 @@ Run `/new` to start the agent creation wizard:
 
 Skills are automatically tagged with [OASF](https://docs.agntcy.org/oasf/open-agentic-schema-framework/) categories based on their name and description. Tags use the format `oasf:<path>` (e.g., `oasf:natural_language/generation/dialogue_generation`) and appear in the generated `agent-card.json`.
 
-After generation, your agent will be ready at `src/agent.ts`.
+After generation, your agent will be ready at `src/agent.ts`. Non-x402 agents are automatically protected with an API key (see [API Key Authentication](#api-key-authentication) below).
 
 ## Models
 
@@ -131,6 +131,25 @@ Reputation is purely front-end (no server changes). The `registrations[]` array 
 ```
 
 The `public/` directory is served as static files. Add any additional assets (icons, stylesheets, scripts) and they will be available at their corresponding URL paths.
+
+## API Key Authentication
+
+When x402 payments are not enabled, the scaffolder generates a random API key (`wdn_` prefix + 64 hex characters) and saves it to `.env` as `AGENT_API_KEY`. The generated server checks this key on all POST requests (A2A task submission and LangGraph endpoints). GET requests (agent card, front-end, health) remain public.
+
+To call a protected agent, include the key as a Bearer token:
+
+```bash
+curl -X POST http://localhost:3000/ \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer wdn_your_key_here" \
+  -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{...}}'
+```
+
+The `/chat` command detects 401 responses and prompts for the key automatically.
+
+To rotate the key, replace the value in `.env` and restart the agent. To disable authentication, remove the `AGENT_API_KEY` line from `.env`.
+
+API key auth and x402 payments are mutually exclusive. When x402 is active, the payment middleware handles access control and the API key check is bypassed.
 
 ## x402 Payments
 
