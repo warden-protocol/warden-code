@@ -163,6 +163,50 @@ describe("A2AClient", () => {
       await expect(client.send("Hello")).rejects.toThrow(AgentProtocolError);
     });
 
+    it("should send Authorization header when apiKey is provided", async () => {
+      let capturedHeaders: Record<string, string> | undefined;
+      mockFetch((_url, init) => {
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse({
+          jsonrpc: "2.0",
+          id: "msg-1",
+          result: {
+            history: [
+              { role: "agent", parts: [{ kind: "text", text: "ok" }] },
+            ],
+          },
+        });
+      });
+
+      const client = new A2AClient("http://localhost:3000", "wdn_test123");
+      await client.send("Hello");
+
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders!["Authorization"]).toBe("Bearer wdn_test123");
+    });
+
+    it("should not send Authorization header when no apiKey", async () => {
+      let capturedHeaders: Record<string, string> | undefined;
+      mockFetch((_url, init) => {
+        capturedHeaders = init?.headers as Record<string, string>;
+        return jsonResponse({
+          jsonrpc: "2.0",
+          id: "msg-1",
+          result: {
+            history: [
+              { role: "agent", parts: [{ kind: "text", text: "ok" }] },
+            ],
+          },
+        });
+      });
+
+      const client = new A2AClient("http://localhost:3000");
+      await client.send("Hello");
+
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders!["Authorization"]).toBeUndefined();
+    });
+
     it("should join multiple agent messages", async () => {
       mockFetch(() =>
         jsonResponse({

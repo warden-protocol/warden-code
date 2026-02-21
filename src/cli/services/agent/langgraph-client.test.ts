@@ -43,6 +43,65 @@ describe("LangGraphClient", () => {
       expect(true).toBe(true);
     });
 
+    it("should send Authorization header when apiKey is provided", async () => {
+      let capturedHeaders: Record<string, string> | undefined;
+      mockFetch((url, init) => {
+        if (url.endsWith("/threads")) {
+          capturedHeaders = init?.headers as Record<string, string>;
+          return jsonResponse({ thread_id: "thread-abc" });
+        }
+        return new Response("Not Found", { status: 404 });
+      });
+
+      const client = new LangGraphClient("http://localhost:3000", "wdn_test123");
+      await client.connect();
+
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders!["Authorization"]).toBe("Bearer wdn_test123");
+    });
+
+    it("should not send Authorization header when no apiKey", async () => {
+      let capturedHeaders: Record<string, string> | undefined;
+      mockFetch((url, init) => {
+        if (url.endsWith("/threads")) {
+          capturedHeaders = init?.headers as Record<string, string>;
+          return jsonResponse({ thread_id: "thread-abc" });
+        }
+        return new Response("Not Found", { status: 404 });
+      });
+
+      const client = new LangGraphClient("http://localhost:3000");
+      await client.connect();
+
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders!["Authorization"]).toBeUndefined();
+    });
+
+    it("should send Authorization header on send requests", async () => {
+      let sendHeaders: Record<string, string> | undefined;
+      mockFetch((url, init) => {
+        if (url.endsWith("/threads")) {
+          return jsonResponse({ thread_id: "thread-1" });
+        }
+        if (url.includes("/runs/wait")) {
+          sendHeaders = init?.headers as Record<string, string>;
+          return jsonResponse({
+            values: {
+              messages: [{ type: "ai", content: "ok" }],
+            },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      });
+
+      const client = new LangGraphClient("http://localhost:3000", "wdn_key456");
+      await client.connect();
+      await client.send("Hello");
+
+      expect(sendHeaders).toBeDefined();
+      expect(sendHeaders!["Authorization"]).toBe("Bearer wdn_key456");
+    });
+
     it("should throw AgentRequestError on failed thread creation", async () => {
       mockFetch(() => new Response("Internal Error", { status: 500 }));
 
