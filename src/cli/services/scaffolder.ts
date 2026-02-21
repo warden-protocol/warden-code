@@ -101,6 +101,7 @@ const langGraphHandler = server.getLangGraphServer().getHandler();
 
 const httpServer = createServer((req, res) => {
   if (serveStatic(req, res)) return;
+  if (authenticateRequest(req, res)) return;
   const url = req.url || "/";
   const isLangGraph = url.startsWith("/info") || url.startsWith("/ok")
     || url.startsWith("/assistants") || url.startsWith("/threads")
@@ -114,6 +115,11 @@ httpServer.listen(PORT, () => {
   console.log(\`{{name}} (Dual Protocol)\`);
   if (process.env.X402 === "false") {
     console.log("x402 payments disabled (X402=false)");
+  }
+  if (process.env.AGENT_API_KEY) {
+    console.log("API Key: protected (Bearer auth required)");
+  } else {
+    console.log("API Key: not set (endpoints are unprotected)");
   }
   console.log(\`Server: \${AGENT_URL}\`);
   console.log(\`Frontend: \${AGENT_URL}/\`);

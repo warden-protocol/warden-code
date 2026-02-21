@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
@@ -50,7 +51,7 @@ export const newCommand: SlashCommand = {
   name: "new",
   description: "Create a new agent interactively",
   usage: "/new [path]",
-  order: 10,
+  order: 1,
   handler: async (args: string[], context: CliContext) => {
     try {
       // Determine target directory
@@ -323,6 +324,17 @@ export const newCommand: SlashCommand = {
       } else {
         console.log(`  x402:         ${chalk.dim("Not configured (enable via /config)")}`);
       }
+
+      // Generate API key for non-x402 agents
+      const agentApiKey = config.x402
+        ? undefined
+        : `wdn_${randomBytes(32).toString("hex")}`;
+
+      if (agentApiKey) {
+        console.log(
+          `  API Key:      ${chalk.rgb(199, 255, 142)(`${agentApiKey.slice(0, 12)}...`)} ${chalk.dim("(saved in .env)")}`,
+        );
+      }
       console.log(chalk.dim("─".repeat(40)));
       console.log();
 
@@ -352,6 +364,9 @@ export const newCommand: SlashCommand = {
             `OPENAI_API_KEY=${openaiApiKey}`,
             "OPENAI_MODEL=gpt-4o-mini",
           );
+        }
+        if (agentApiKey) {
+          envLines.push(`AGENT_API_KEY=${agentApiKey}`);
         }
         if (config.x402) {
           const networkPrefixMap: Record<string, string> = {

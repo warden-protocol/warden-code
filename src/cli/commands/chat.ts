@@ -1,5 +1,5 @@
 import * as readline from "node:readline";
-import { select } from "@inquirer/prompts";
+import { select, password } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
 import type { SlashCommand, CliContext } from "../types.js";
@@ -20,12 +20,16 @@ function chatModePrompt(): string {
   return chalk.rgb(199, 255, 142)("chat") + chalk.dim("> ");
 }
 
-function createClient(protocol: ProtocolKind, baseUrl: string): AgentClient {
+function createClient(
+  protocol: ProtocolKind,
+  baseUrl: string,
+  apiKey?: string,
+): AgentClient {
   switch (protocol) {
     case "a2a":
-      return new A2AClient(baseUrl);
+      return new A2AClient(baseUrl, apiKey);
     case "langgraph":
-      return new LangGraphClient(baseUrl);
+      return new LangGraphClient(baseUrl, apiKey);
   }
 }
 
@@ -159,7 +163,8 @@ export async function runChatSession(
   displayAgentInfo(selectedInfo);
 
   // ── Connect ────────────────────────────────────────────────
-  const client = createClient(selectedInfo.protocol, baseUrl);
+  let apiKey: string | undefined;
+  let client = createClient(selectedInfo.protocol, baseUrl);
 
   const connectSpinner = ora({
     text: "Starting session...",
@@ -169,21 +174,56 @@ export async function runChatSession(
     await client.connect();
     connectSpinner.succeed("Session started");
   } catch (error) {
-    connectSpinner.fail("Failed to start session");
-    context.log.error(formatAgentError(error));
-    return;
+    if (error instanceof AgentRequestError && error.status === 401) {
+      connectSpinner.warn("Agent requires authentication");
+      try {
+        apiKey = await password({
+          message: "API key:",
+          theme: {
+            style: {
+              answer: (text: string) => chalk.rgb(199, 255, 142)(text),
+            },
+          },
+        });
+        client = createClient(selectedInfo.protocol, baseUrl, apiKey);
+        const retrySpinner = ora({
+          text: "Reconnecting...",
+          discardStdin: false,
+        }).start();
+        await client.connect();
+        retrySpinner.succeed("Session started");
+      } catch (retryError) {
+        context.log.error(formatAgentError(retryError));
+        return;
+      }
+    } else {
+      connectSpinner.fail("Failed to start session");
+      context.log.error(formatAgentError(error));
+      return;
+    }
   }
 
   console.log(chalk.dim("\nType your message. /exit to leave.\n"));
 
   // ── Chat loop ──────────────────────────────────────────────
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  let running = true;
 
-  const question = (prompt: string): Promise<string> =>
-    new Promise((resolve, reject) => {
+  function createReadline(): readline.Interface {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.on("SIGINT", () => {
+      running = false;
+      rl.close();
+      console.log();
+      context.log.dim("Exited chat mode.");
+    });
+    return rl;
+  }
+
+  function ask(rl: readline.Interface, prompt: string): Promise<string> {
+    return new Promise((resolve, reject) => {
       const onClose = () => reject(new Error("closed"));
       rl.once("close", onClose);
       rl.question(prompt, (answer) => {
@@ -191,20 +231,14 @@ export async function runChatSession(
         resolve(answer);
       });
     });
+  }
 
-  let running = true;
-
-  rl.on("SIGINT", () => {
-    running = false;
-    rl.close();
-    console.log();
-    context.log.dim("Exited chat mode.");
-  });
+  let rl = createReadline();
 
   while (running) {
     let userInput: string;
     try {
-      userInput = await question(chatModePrompt());
+      userInput = await ask(rl, chatModePrompt());
     } catch {
       break;
     }
@@ -235,6 +269,47 @@ export async function runChatSession(
       console.log(response);
       console.log();
     } catch (error) {
+      // Handle 401 on first message (A2A connect is a no-op, so 401 appears here)
+      if (
+        !apiKey &&
+        error instanceof AgentRequestError &&
+        error.status === 401
+      ) {
+        msgSpinner.warn("Agent requires authentication");
+        try {
+          rl.close();
+          apiKey = await password({
+            message: "API key:",
+            theme: {
+              style: {
+                answer: (text: string) => chalk.rgb(199, 255, 142)(text),
+              },
+            },
+          });
+          client = createClient(selectedInfo.protocol, baseUrl, apiKey);
+          await client.connect();
+
+          // Retry the message
+          const retrySpinner = ora({
+            text: "Thinking...",
+            discardStdin: false,
+          }).start();
+          const response = await client.send(trimmed);
+          retrySpinner.stop();
+
+          console.log();
+          console.log(response);
+          console.log();
+
+          // Recreate readline after Inquirer prompt took over stdin
+          rl = createReadline();
+        } catch (retryError) {
+          context.log.error(formatAgentError(retryError));
+          break;
+        }
+        continue;
+      }
+
       msgSpinner.fail("Request failed");
       context.log.error(formatAgentError(error));
       if (isNonRecoverableError(error)) {

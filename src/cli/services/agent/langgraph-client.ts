@@ -10,12 +10,20 @@ export class LangGraphClient implements AgentClient {
   readonly protocol = "langgraph" as const;
   private threadId: string | undefined;
 
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey?: string,
+  ) {}
+
+  private get authHeaders(): Record<string, string> {
+    if (!this.apiKey) return {};
+    return { Authorization: `Bearer ${this.apiKey}` };
+  }
 
   async connect(): Promise<void> {
     const res = await fetch(`${this.baseUrl}/threads`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...this.authHeaders },
       body: JSON.stringify({}),
     });
 
@@ -43,7 +51,7 @@ export class LangGraphClient implements AgentClient {
       `${this.baseUrl}/threads/${this.threadId}/runs/wait`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...this.authHeaders },
         body: JSON.stringify(body),
       },
     );

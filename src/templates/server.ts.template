@@ -49,6 +49,18 @@ function serveStatic(req: IncomingMessage, res: ServerResponse): boolean {
   }
 }
 
+function authenticateRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  const apiKey = process.env.AGENT_API_KEY;
+  if (!apiKey || req.method !== "POST") return false;
+
+  const auth = req.headers.authorization;
+  if (auth === `Bearer ${apiKey}`) return false;
+
+  res.writeHead(401, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Unauthorized", message: "Valid API key required. Set Authorization: Bearer <key> header." }));
+  return true;
+}
+
 if (agentCard.url && agentCard.url !== AGENT_URL) {
   console.warn(`Warning: agent card "url" is "${agentCard.url}" but server is "${AGENT_URL}".`);
   console.warn(`Update public/.well-known/agent-card.json to match your deployment URL.`);

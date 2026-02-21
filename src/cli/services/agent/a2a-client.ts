@@ -29,7 +29,10 @@ export class A2AClient implements AgentClient {
   private contextId: string | undefined;
   private messageCounter = 0;
 
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey?: string,
+  ) {}
 
   async connect(): Promise<void> {
     // A2A is stateless on connect; contextId is established on first response
@@ -52,9 +55,16 @@ export class A2AClient implements AgentClient {
       },
     };
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (this.apiKey) {
+      headers["Authorization"] = `Bearer ${this.apiKey}`;
+    }
+
     const res = await fetch(this.baseUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
     });
 
