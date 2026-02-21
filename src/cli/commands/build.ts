@@ -497,7 +497,10 @@ export const buildCommand: SlashCommand = {
         );
         await runChatSession(baseUrl, context);
 
-        // Return to build mode
+        // Return to build mode — resume stdin in case it was paused
+        // by the closed readline and never resumed (e.g. chat probe failed
+        // before creating its own readline)
+        process.stdin.resume();
         console.log();
         context.log.info("Back to build mode.");
         console.log();
