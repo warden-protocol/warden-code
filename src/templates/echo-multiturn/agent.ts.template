@@ -24,7 +24,7 @@ export async function* handler(context: TaskContext): AsyncGenerator<TaskYieldUp
     state: "completed",
     message: {
       role: "agent",
-      parts: [{ type: "text", text: `Echo: ${userMessage}` }],
+      parts: [{ type: "text", text: `Agent: ${userMessage}` }],
     },
   };
 }
