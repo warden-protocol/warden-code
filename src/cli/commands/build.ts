@@ -495,12 +495,16 @@ export const buildCommand: SlashCommand = {
         context.log.dim(
           "Tip: make sure your agent is running (npm run agent) in another terminal.",
         );
-        await runChatSession(baseUrl, context);
+        await runChatSession(baseUrl, context, projectDir);
 
-        // Return to build mode — resume stdin in case it was paused
-        // by the closed readline and never resumed (e.g. chat probe failed
-        // before creating its own readline)
+        // Return to build mode — drain any buffered stdin left behind by
+        // Inquirer prompts, then resume in case chat left it paused.
+        process.stdin.pause();
+        while (process.stdin.read() !== null) { /* drain */ }
         process.stdin.resume();
+        // Yield to the event loop so any pending I/O is flushed before
+        // the new readline starts listening for input.
+        await new Promise((r) => setImmediate(r));
         console.log();
         context.log.info("Back to build mode.");
         console.log();

@@ -1,4 +1,6 @@
 import * as readline from "node:readline";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { select, password } from "@inquirer/prompts";
 import chalk from "chalk";
 import ora from "ora";
@@ -9,6 +11,7 @@ import type {
   ProtocolKind,
 } from "../services/agent/types.js";
 import { probeAgent } from "../services/agent/probe.js";
+import { parseEnv } from "../services/agent-config.js";
 import {
   A2AClient,
   AgentRequestError,
@@ -79,6 +82,15 @@ function isNonRecoverableError(error: unknown): boolean {
   return false;
 }
 
+async function readEnvApiKey(cwd: string): Promise<string | undefined> {
+  try {
+    const content = await readFile(path.join(cwd, ".env"), "utf-8");
+    return parseEnv(content).get("AGENT_API_KEY") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Runs an interactive chat session with an agent.
  * Probes the agent, connects, and enters a chat loop.
@@ -87,6 +99,7 @@ function isNonRecoverableError(error: unknown): boolean {
 export async function runChatSession(
   baseUrl: string,
   context: CliContext,
+  projectDir?: string,
 ): Promise<void> {
   // ── Probe agent ────────────────────────────────────────────
   const spinner = ora({
@@ -163,8 +176,9 @@ export async function runChatSession(
   displayAgentInfo(selectedInfo);
 
   // ── Connect ────────────────────────────────────────────────
-  let apiKey: string | undefined;
-  let client = createClient(selectedInfo.protocol, baseUrl);
+  let apiKey = await readEnvApiKey(projectDir ?? context.cwd);
+  let promptedForKey = false;
+  let client = createClient(selectedInfo.protocol, baseUrl, apiKey);
 
   const connectSpinner = ora({
     text: "Starting session...",
@@ -174,9 +188,13 @@ export async function runChatSession(
     await client.connect();
     connectSpinner.succeed("Session started");
   } catch (error) {
-    if (error instanceof AgentRequestError && error.status === 401) {
+    if (
+      error instanceof AgentRequestError &&
+      (error.status === 401 || error.status === 402)
+    ) {
       connectSpinner.warn("Agent requires authentication");
       try {
+        promptedForKey = true;
         apiKey = await password({
           message: "API key:",
           theme: {
@@ -269,15 +287,17 @@ export async function runChatSession(
       console.log(response);
       console.log();
     } catch (error) {
-      // Handle 401 on first message (A2A connect is a no-op, so 401 appears here)
+      // Handle 401/402 on first message (A2A connect is a no-op, so auth errors appear here)
       if (
-        !apiKey &&
+        !promptedForKey &&
         error instanceof AgentRequestError &&
-        error.status === 401
+        (error.status === 401 || error.status === 402)
       ) {
         msgSpinner.warn("Agent requires authentication");
+        let retrySpinner: ReturnType<typeof ora> | undefined;
         try {
           rl.close();
+          promptedForKey = true;
           apiKey = await password({
             message: "API key:",
             theme: {
@@ -290,7 +310,7 @@ export async function runChatSession(
           await client.connect();
 
           // Retry the message
-          const retrySpinner = ora({
+          retrySpinner = ora({
             text: "Thinking...",
             discardStdin: false,
           }).start();
@@ -304,6 +324,7 @@ export async function runChatSession(
           // Recreate readline after Inquirer prompt took over stdin
           rl = createReadline();
         } catch (retryError) {
+          if (retrySpinner) retrySpinner.fail("Request failed");
           context.log.error(formatAgentError(retryError));
           break;
         }
