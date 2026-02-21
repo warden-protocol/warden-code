@@ -143,11 +143,17 @@ if (paymentConfig) {
     "{{description}}",
     server.getA2AServer().getHandler(),
     server.getLangGraphServer().getHandler(),
+    process.env.AGENT_API_KEY,
   );
 
   app.listen(PORT, () => {
     {{model_startup_log}}
     console.log(\`{{name}} (Dual Protocol + x402 Payments)\`);
+    if (process.env.AGENT_API_KEY) {
+      console.log("API Key: protected (Bearer auth bypasses payment)");
+    } else {
+      console.log("API Key: not set (all requests require payment)");
+    }
     console.log(\`Server: \${AGENT_URL}\`);
     console.log(\`Frontend: \${AGENT_URL}/\`);
     console.log();
@@ -342,6 +348,7 @@ export function createPaymentApp(
   description: string,
   a2aHandler: RequestHandler,
   langGraphHandler: RequestHandler,
+  apiKey?: string,
 ): Express {
   const facilitatorClient = new HTTPFacilitatorClient({
     ...(config.isPayAI ? createFacilitatorConfig() : {}),
@@ -369,18 +376,27 @@ export function createPaymentApp(
     next();
   });
 
-  app.use(
-    paymentMiddleware(
-      {
-        "POST /": {
-          accepts: config.accepts,
-          description,
-          mimeType: "application/json",
-        },
+  const payment = paymentMiddleware(
+    {
+      "POST /": {
+        accepts: config.accepts,
+        description,
+        mimeType: "application/json",
       },
-      resourceServer,
-    ),
+    },
+    resourceServer,
   );
+
+  if (apiKey) {
+    app.use((req, res, next) => {
+      if (req.method === "POST" && req.headers.authorization === \`Bearer \${apiKey}\`) {
+        return next();
+      }
+      payment(req, res, next);
+    });
+  } else {
+    app.use(payment);
+  }
 
   app.all("*", (req, res, next) => {
     const url = req.url || "/";

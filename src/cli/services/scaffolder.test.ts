@@ -656,6 +656,28 @@ describe("processTemplate", () => {
       expect(result).not.toContain("{{description}}");
     });
 
+    it("should pass AGENT_API_KEY to createPaymentApp for auth bypass", () => {
+      const content = "{{x402_listen}}";
+      const config = createMockConfig();
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("process.env.AGENT_API_KEY");
+      expect(result).toContain(
+        "createPaymentApp(\n    paymentConfig,",
+      );
+    });
+
+    it("should log API key status in x402 startup block", () => {
+      const content = "{{x402_listen}}";
+      const config = createMockConfig();
+
+      const result = processTemplate(content, config);
+
+      expect(result).toContain("Bearer auth bypasses payment");
+      expect(result).toContain("all requests require payment");
+    });
+
     it("should support X402=false env var to disable payments at runtime", () => {
       const content = "{{x402_listen}}";
       const config = createMockConfig();
@@ -1025,6 +1047,20 @@ describe("buildPaymentsModule", () => {
     expect(result).toContain("langGraphHandler");
     expect(result).toContain("express.static");
     expect(result).toContain("return app");
+  });
+
+  it("should accept optional apiKey parameter in createPaymentApp", () => {
+    const result = buildPaymentsModule();
+
+    expect(result).toContain("apiKey?: string");
+  });
+
+  it("should bypass payment middleware when valid API key is provided", () => {
+    const result = buildPaymentsModule();
+
+    expect(result).toContain("if (apiKey)");
+    expect(result).toContain("req.headers.authorization === `Bearer ${apiKey}`");
+    expect(result).toContain("payment(req, res, next)");
   });
 
   it("should not contain hardcoded wallet addresses or prices", () => {
