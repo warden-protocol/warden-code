@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.14.0 (2026-02-21)
+
+### Features
+
+- Combined auth: API key is the primary auth for all agents; valid Bearer tokens bypass x402 payment middleware, unauthenticated requests fall through to x402 payment flow
+- `/chat` auto-reads `AGENT_API_KEY` from the project `.env` file, so authenticated agents work without manual key entry
+- `/chat` in `/build` mode reads `.env` from the build target directory (not just cwd)
+- `/chat` handles 402 (Payment Required) in the auth retry flow, prompting for an API key instead of failing immediately
+
+### Fixes
+
+- Retry spinner in `/chat` auth flow is properly stopped on error instead of leaking into subsequent output
+- Stdin drain after returning from `/chat` to `/build` mode prevents phantom input from triggering the build AI
+
 ## 1.13.0 (2026-02-21)
 
 ### Features

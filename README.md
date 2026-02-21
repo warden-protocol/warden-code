@@ -134,7 +134,9 @@ The `public/` directory is served as static files. Add any additional assets (ic
 
 ## API Key Authentication
 
-When x402 payments are not enabled, the scaffolder generates a random API key (`wdn_` prefix + 64 hex characters) and saves it to `.env` as `AGENT_API_KEY`. The generated server checks this key on all POST requests (A2A task submission and LangGraph endpoints). GET requests (agent card, front-end, health) remain public.
+The scaffolder generates a random API key (`wdn_` prefix + 64 hex characters) and saves it to `.env` as `AGENT_API_KEY`. The generated server checks this key on all POST requests (A2A task submission and LangGraph endpoints). GET requests (agent card, front-end, health) remain public.
+
+When x402 payments are also enabled, API key auth takes priority: requests with a valid Bearer token bypass the payment middleware entirely. Requests without a valid key fall through to the x402 payment flow.
 
 To call a protected agent, include the key as a Bearer token:
 
@@ -145,11 +147,9 @@ curl -X POST http://localhost:3000/ \
   -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{...}}'
 ```
 
-The `/chat` command detects 401 responses and prompts for the key automatically.
+The `/chat` command auto-reads `AGENT_API_KEY` from the project's `.env` file. If no key is found or the key is rejected, it prompts interactively.
 
 To rotate the key, replace the value in `.env` and restart the agent. To disable authentication, remove the `AGENT_API_KEY` line from `.env`.
-
-API key auth and x402 payments are mutually exclusive. When x402 is active, the payment middleware handles access control and the API key check is bypassed.
 
 ## x402 Payments
 
@@ -202,13 +202,13 @@ To disable a network, remove its `PAY_TO` value. To disable payments entirely, r
 
 ### Testing without payments
 
-To test an x402 agent locally with `/chat`, start it with payments disabled:
+If your agent has an `AGENT_API_KEY` set in `.env`, the `/chat` command will use it automatically to bypass payments. You can also start the agent with payments disabled:
 
 ```bash
 X402=false npm start
 ```
 
-This skips the payment middleware for that process only. Your `.env` stays untouched and payments resume on the next normal start. The `/chat` command will suggest this flag automatically when it encounters a 402 response.
+This skips the payment middleware for that process only. Your `.env` stays untouched and payments resume on the next normal start.
 
 ### Networks
 
